@@ -223,14 +223,37 @@ completo, se expuso el puerto de Redis al host (`6379:6379` en
 `docker-compose.yml`). No es necesario para producción, solo para poder
 testear desde la máquina sin entrar al contenedor.
 
-## Fase 3 — Cierre automático
+## Fase 3 — Cierre automático ✅ (completa, verificada con `docker compose up` esperando el TTL real)
 
-- [ ] `setCierreConTTL(id, segundos)` al crear la subasta
-- [ ] Habilitar `notify-keyspace-events Ex` en la config de Redis
-- [ ] Listener de eventos `expired` (`__keyevent@0__:expired`)
-- [ ] `onSubastaExpirada(id)`
-- [ ] `determinarGanador(id)`
-- [ ] `marcarComoCerrada(id)`
+- [x] `setCierreConTTL(id, segundos)` al crear la subasta —
+      `api/src/subastas/cierre.repository.ts`, llamado desde
+      `SubastasService.crear()`
+- [x] Habilitar `notify-keyspace-events Ex` en Redis — `command` del
+      servicio `redis` en `docker-compose.yml`
+- [x] Listener de eventos `expired` (`__keyevent@0__:expired`) —
+      `api/src/subastas/cierre.listener.ts`, usando una segunda conexión
+      dedicada (`redis.duplicate()`) porque una conexión en modo
+      `subscribe` no puede usarse para otros comandos
+- [x] `onSubastaExpirada(id)` — mismo archivo, se dispara desde el handler
+      del mensaje
+- [x] `determinarGanador(id)` — `subastas.repository.ts`: toma el último
+      elemento del historial (con `pujarAtomica`, el historial solo
+      contiene pujas ganadoras en orden, así que el último es el ganador;
+      `null` si nunca hubo pujas)
+- [x] `marcarComoCerrada(id, ganador)` — `subastas.repository.ts`, reescribe
+      solo el registro `subasta:{id}` (no toca `:puja` ni el índice)
+
+**Extra que no estaba en el checklist pero era necesario:** con el cierre
+ya andando, se podía seguir pujando en una subasta cerrada (el script Lua
+solo compara montos, no mira la bandera `cerrada`). Se agregó el chequeo en
+`PujasService`: pujar sobre una subasta cerrada ahora responde
+`409 { ok: false, motivo: "cerrada", montoActual }`. Documentado en
+AGENTS.md.
+
+**Verificado a mano contra el stack real:** subasta con `duracionSegundos`
+corto (3-5s), se puja, se espera el vencimiento, y el detalle pasa solo a
+`cerrada: true` con el `ganador` correcto (o `null` si nadie pujó). El log
+de `CierreListener` confirma el evento disparado.
 
 ## Fase 4 — Tiempo real multi-réplica
 

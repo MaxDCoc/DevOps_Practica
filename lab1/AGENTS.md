@@ -80,6 +80,7 @@ GET  /api/subastas/:id           → detalle + montoActual + historial de pujas
 POST /api/subastas/:id/pujas     → { monto, usuario }
      200 → { ok: true, montoActual }
      409 → { ok: false, motivo: "superada", montoActual }
+     409 → { ok: false, motivo: "cerrada", montoActual }   (la subasta ya cerró)
 GET  /api/health                 → { status, hostname }
 ```
 
