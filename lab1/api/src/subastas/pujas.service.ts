@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { SubastasRepository } from './subastas.repository.js';
 import { PujasRepository } from './pujas.repository.js';
+import { RealtimeGateway } from '../realtime/realtime.gateway.js';
 import type { ResultadoPuja, Subasta } from './subasta.model.js';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class PujasService {
   constructor(
     private readonly subastasRepository: SubastasRepository,
     private readonly pujasRepository: PujasRepository,
+    private readonly realtimeGateway: RealtimeGateway,
   ) {}
 
   private async validar(id: string, monto: number, usuario: string): Promise<Subasta> {
@@ -36,6 +38,7 @@ export class PujasService {
     }
 
     await this.pujasRepository.appendHistorial(id, { monto, usuario, timestamp: Date.now() });
+    this.realtimeGateway.emitNuevaPuja(id, { montoActual, usuario });
     return { ok: true, montoActual };
   }
 
@@ -59,6 +62,7 @@ export class PujasService {
 
     await this.pujasRepository.setMontoActualSinVerificar(id, monto);
     await this.pujasRepository.appendHistorial(id, { monto, usuario, timestamp: Date.now() });
+    this.realtimeGateway.emitNuevaPuja(id, { montoActual: monto, usuario });
     return { ok: true, montoActual: monto };
   }
 

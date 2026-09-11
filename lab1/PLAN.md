@@ -255,19 +255,40 @@ corto (3-5s), se puja, se espera el vencimiento, y el detalle pasa solo a
 `cerrada: true` con el `ganador` correcto (o `null` si nadie pujó). El log
 de `CierreListener` confirma el evento disparado.
 
-## Fase 4 — Tiempo real multi-réplica
+## Fase 4 — Tiempo real multi-réplica 🔶 (backend listo, falta Web)
 
-**API**
-- [ ] WebSocket Gateway (NestJS + Socket.IO)
-- [ ] `emitNuevaPuja(id, payload)`
-- [ ] `emitSubastaCerrada(id, ganador)`
-- [ ] Adaptador Redis para Socket.IO (pub/sub entre las 3 réplicas)
+**API** — `api/src/realtime/`
+- [x] WebSocket Gateway (NestJS + Socket.IO) — `realtime.gateway.ts`, path
+      `/api/socket.io/` (no el default `/socket.io/`, para que Traefik lo
+      enrute a la API igual que el resto de `/api`)
+- [x] `emitNuevaPuja(id, payload)` — llamado desde `PujasService` (tanto en
+      `pujarAtomica` como en `pujarIngenua`, para que la demo del bug
+      también se vea en vivo)
+- [x] `emitSubastaCerrada(id, ganador)` — llamado desde `CierreListener`
+      cuando se cierra la subasta (Fase 3)
+- [x] Adaptador Redis para Socket.IO — `redis-io.adapter.ts`, conectado en
+      `main.ts` con dos conexiones dedicadas (`redisClient.duplicate()`
+      x2, una para publish y otra para subscribe, igual que en
+      `CierreListener`)
 
-**Web**
+**Web** (queda para la rama de frontend)
 - [ ] `connectSocket()`
 - [ ] `suscribirseASubasta(id)`
 - [ ] Actualizar UI en vivo al recibir `nuevaPuja` (sin refrescar)
 - [ ] Actualizar UI al recibir `subastaCerrada`
+
+**Contrato de WebSocket documentado en AGENTS.md** (path, eventos, ejemplo
+de cliente) para que Front pueda arrancar sin esperar nada más.
+
+**Verificado end-to-end** con un cliente `socket.io-client` de prueba
+contra el stack real (a través de Traefik en `http://localhost`): se creó
+una subasta, se pujó, y llegaron los dos eventos (`nuevaPuja` y
+`subastaCerrada` con el ganador) en tiempo real, sin polling.
+
+**Pendiente de verificar recién en Fase 6:** que el adaptador de Redis
+realmente propague eventos *entre* réplicas distintas (ahora mismo solo
+hay una instancia de la API corriendo, así que no hay nada que propagar
+todavía). La demo real de esto es con las 3 réplicas ya levantadas.
 
 ## Fase 5 — Identificación simple del usuario 🙋 (asignada a un compañero, en curso)
 

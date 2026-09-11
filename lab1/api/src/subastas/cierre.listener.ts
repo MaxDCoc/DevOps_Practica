@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { Redis } from 'ioredis';
 import { REDIS_CLIENT } from '../redis/redis.constants.js';
 import { SubastasRepository } from './subastas.repository.js';
+import { RealtimeGateway } from '../realtime/realtime.gateway.js';
 
 const CANAL_EXPIRADOS = '__keyevent@0__:expired';
 const PREFIJO = 'subasta:';
@@ -15,6 +16,7 @@ export class CierreListener implements OnModuleInit {
   constructor(
     @Inject(REDIS_CLIENT) redis: Redis,
     private readonly subastasRepository: SubastasRepository,
+    private readonly realtimeGateway: RealtimeGateway,
   ) {
     // Una conexión de Redis en modo `subscribe` queda dedicada a eso, así
     // que no se puede compartir con el cliente que usan los repositorios
@@ -39,6 +41,7 @@ export class CierreListener implements OnModuleInit {
   async onSubastaExpirada(id: string): Promise<void> {
     const ganador = await this.subastasRepository.determinarGanador(id);
     await this.subastasRepository.marcarComoCerrada(id, ganador);
+    this.realtimeGateway.emitSubastaCerrada(id, ganador);
     this.logger.log(`Subasta ${id} cerrada. Ganador: ${ganador ?? 'sin pujas'}`);
   }
 }

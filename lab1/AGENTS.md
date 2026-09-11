@@ -117,12 +117,43 @@ mostrar el antes y el después.
 
 ## Tiempo real con múltiples réplicas
 
-Las actualizaciones en vivo usan WebSockets o SSE. Con 3 réplicas, un evento
-emitido desde una instancia no llega a los clientes conectados a las otras. Se
-resuelve con el adaptador de Redis para Socket.IO, que propaga los eventos entre
+Las actualizaciones en vivo usan WebSockets (Socket.IO). Con 3 réplicas, un
+evento emitido desde una instancia no llega a los clientes conectados a las
+otras. Se resuelve con el adaptador de Redis para Socket.IO
+(`api/src/realtime/redis-io.adapter.ts`), que propaga los eventos entre
 instancias vía Pub/Sub.
 
 Es un segundo argumento independiente de por qué Redis es necesario acá.
+
+**Contrato de WebSocket (para Front):**
+
+```
+path del socket: /api/socket.io/   ← importante, no el /socket.io/ default
+                                       (así Traefik lo enruta a la API)
+
+Cliente → servidor:
+  emit "suscribirseASubasta"  con el id de la subasta (string)
+
+Servidor → cliente (solo a los suscriptos a esa subasta):
+  on "nuevaPuja"        → { montoActual, usuario }
+  on "subastaCerrada"   → { ganador }  (ganador puede ser null)
+```
+
+Ejemplo mínimo del lado del cliente:
+
+```ts
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost', { path: '/api/socket.io/' });
+socket.emit('suscribirseASubasta', subastaId);
+socket.on('nuevaPuja', (payload) => { /* actualizar monto en pantalla */ });
+socket.on('subastaCerrada', (payload) => { /* mostrar ganador */ });
+```
+
+Nota para desarrollo local sin Docker (`npm run dev` en `web/` apuntando a
+`npm run start:dev` en `api/`): el proxy de Vite en `web/vite.config.ts`
+solo redirige HTTP por ahora. Para que los WebSockets también atraviesen el
+proxy en ese modo, hay que agregarle `ws: true` a la entrada `/api`.
 
 ## Alcance
 

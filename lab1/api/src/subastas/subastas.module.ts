@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { RedisModule } from '../redis/redis.module.js';
+import { RealtimeModule } from '../realtime/realtime.module.js';
 import { SubastasController } from './subastas.controller.js';
 import { SubastasRepository } from './subastas.repository.js';
 import { SubastasService } from './subastas.service.js';
@@ -10,7 +11,7 @@ import { CierreRepository } from './cierre.repository.js';
 import { CierreListener } from './cierre.listener.js';
 
 @Module({
-  imports: [RedisModule],
+  imports: [RedisModule, RealtimeModule],
   controllers: [SubastasController, PujasController],
   providers: [
     SubastasRepository,
