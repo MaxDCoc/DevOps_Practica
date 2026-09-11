@@ -74,13 +74,21 @@ Definido antes de escribir código, para que el front trabaje contra mocks sin
 esperar al backend.
 
 ```
-GET  /api/subastas              → lista
-GET  /api/subastas/:id          → detalle + pujas
-POST /api/subastas/:id/pujas    → { monto, usuario }
+POST /api/subastas               → { nombre, montoInicial, duracionSegundos }
+GET  /api/subastas               → lista
+GET  /api/subastas/:id           → detalle + montoActual + historial de pujas
+POST /api/subastas/:id/pujas     → { monto, usuario }
      200 → { ok: true, montoActual }
      409 → { ok: false, motivo: "superada", montoActual }
-GET  /api/health                → { status, hostname }
+GET  /api/health                 → { status, hostname }
 ```
+
+**Solo para la demo (no es parte del contrato "real"):**
+`POST /api/subastas/:id/pujas/ingenua` — mismo body y mismas respuestas que
+la ruta de pujas normal, pero usa la versión sin atomicidad a propósito.
+Existe únicamente para mostrar el bug lado a lado con la versión corregida
+en el coloquio. Si Front quiere un toggle "ingenua/corregida" en la demo,
+es esta ruta la que tiene que llamar en el modo "ingenua".
 
 `hostname` devuelve el nombre del contenedor que respondió. Se usa en la demo
 para evidenciar que el tráfico se reparte entre las 3 réplicas.

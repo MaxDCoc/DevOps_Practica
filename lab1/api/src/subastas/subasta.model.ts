@@ -19,3 +19,14 @@ export interface CrearSubastaDto {
   montoInicial: number;
   duracionSegundos: number;
 }
+
+export interface PujarDto {
+  monto: number;
+  usuario: string;
+}
+
+export interface ResultadoPuja {
+  ok: boolean;
+  montoActual: number;
+  motivo?: string;
+}

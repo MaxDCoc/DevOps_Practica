@@ -183,22 +183,45 @@ nombre: `import { Redis } from 'ioredis'`.
 404 en subasta inexistente, 400 en body inválido, y las claves de Redis
 inspeccionadas con `redis-cli`).
 
-## Fase 2 — Puja concurrente (el corazón del proyecto)
+## Fase 2 — Puja concurrente (el corazón del proyecto) ✅ (completa, verificada con tests e2e y a mano vía Traefik)
 
-- [ ] `pujarIngenua(id, monto, usuario)` — versión sin atomicidad, a
-      propósito, para mostrar el bug en la demo (buscar monto, comparar en
-      JS, guardar)
-- [ ] `getMontoActual(id)`
-- [ ] `setMontoActualSiSupera(id, monto)` — atómico, con `WATCH/MULTI/EXEC`
-      o script Lua (`evalPuja.lua`)
-- [ ] `pujarAtomica(id, monto, usuario)` — versión corregida, usa la
-      función anterior
-- [ ] `appendHistorial(id, { monto, usuario, timestamp })`
-- [ ] `getHistorial(id)`
-- [ ] `POST /api/subastas/:id/pujas` →
+**Redis** — `api/src/subastas/pujas.repository.ts`
+- [x] `getMontoActual(id)` (ya estaba de Fase 1)
+- [x] `setMontoActualSiSupera(id, monto)` — atómico, con **script Lua**
+      (`PUJAR_ATOMICO_SCRIPT`, registrado como comando custom
+      `pujarAtomico` vía `redis.defineCommand`). Se eligió Lua en vez de
+      `WATCH/MULTI/EXEC` porque resuelve la atomicidad en un solo viaje a
+      Redis, sin loop de reintento.
+- [x] `appendHistorial(id, { monto, usuario, timestamp })`
+- [x] `setMontoActualSinVerificar(id, monto)` — sin chequeo, solo para la
+      versión ingenua
+
+**API** — `api/src/subastas/pujas.{service,controller}.ts`
+- [x] `pujarAtomica(id, monto, usuario)` — versión corregida
+- [x] `pujarIngenua(id, monto, usuario)` — versión rota a propósito (lee,
+      espera 200ms simulando la ventana de carrera, escribe sin
+      revalidar), para el demo antes/después
+- [x] `POST /api/subastas/:id/pujas` →
       `200 { ok: true, montoActual }` /
       `409 { ok: false, motivo: "superada", montoActual }`
-- [ ] Test: dos pujas simultáneas al mismo monto → solo una gana
+- [x] `POST /api/subastas/:id/pujas/ingenua` — mismo contrato, usa la
+      versión rota (demo-only, no forma parte del contrato "real"; ver
+      AGENTS.md)
+- [x] Test e2e (`api/test/pujas-concurrencia.e2e-spec.ts`): dos pujas
+      simultáneas al mismo monto en la versión atómica → una gana (200) y
+      la otra recibe 409 "superada"; la misma prueba contra la versión
+      ingenua confirma que ahí ganan las dos (el bug reproducido a
+      propósito)
+
+**Verificado dos formas:** `npm run test:e2e` (contra Redis real en
+`localhost:6379`, hay que tener `docker compose up -d redis` corriendo) y
+a mano con `curl` en paralelo contra `http://localhost/api/...` (el camino
+real de Traefik), con el mismo resultado en ambos casos.
+
+**Nota:** para que los tests e2e corran localmente sin Docker Desktop
+completo, se expuso el puerto de Redis al host (`6379:6379` en
+`docker-compose.yml`). No es necesario para producción, solo para poder
+testear desde la máquina sin entrar al contenedor.
 
 ## Fase 3 — Cierre automático
 
