@@ -143,22 +143,45 @@ marcaba el contenedor "unhealthy" y Traefik dejaba de enrutarle tráfico a
 healthcheck a `http://127.0.0.1:3000/...`. Si arman healthchecks para otros
 servicios, usen `127.0.0.1`, no `localhost`.
 
-## Fase 1 — Modelo de datos y CRUD de subastas
+## Fase 1 — Modelo de datos y CRUD de subastas 🔶 (backend listo, falta Web)
 
-**Redis (servicio dentro de la API)**
-- [ ] `saveSubasta(id, data)`
-- [ ] `getSubasta(id)`
-- [ ] `listSubastas()`
+**Redis (servicio dentro de la API)** — `api/src/subastas/subastas.repository.ts`
+- [x] `saveSubasta(subasta)`
+- [x] `getSubasta(id)`
+- [x] `listSubastas()`
+- [x] `getMontoActual(id)` (adelantado de Fase 2, lo pedía el detalle)
+- [x] `getHistorial(id)` (adelantado de Fase 2, lo pedía el detalle; devuelve
+      `[]` hasta que Fase 2 empiece a escribir con `appendHistorial`)
 
-**API**
-- [ ] `POST /api/subastas` — crear subasta (nombre, monto inicial, duración)
-- [ ] `GET /api/subastas` — listar
-- [ ] `GET /api/subastas/:id` — detalle + historial de pujas
+**API** — `api/src/subastas/subastas.{controller,service}.ts`
+- [x] `POST /api/subastas` — crear subasta (nombre, monto inicial, duración)
+- [x] `GET /api/subastas` — listar
+- [x] `GET /api/subastas/:id` — detalle + historial de pujas (404 si no
+      existe)
+- [x] Validación manual básica (400 si falta nombre, o los montos/duración
+      no son números positivos)
 
-**Web**
+**Web** (queda para la rama de frontend, contra el contrato ya congelado)
 - [ ] Vista listado de subastas
 - [ ] Vista detalle de una subasta
 - [ ] Alta de subasta (formulario o seed de datos de prueba)
+
+**Decisión técnica:** para listar sin usar `KEYS subasta:*` (mala práctica
+en Redis en producción), se agregó un Set `subastas:index` con todos los
+IDs. Ya está documentado en `AGENTS.md`. Cliente de Redis: `ioredis`
+(elegido pensando en Fase 2 — transacciones `MULTI/EXEC` — y Fase 4 —
+adaptador de Socket.IO). Vive en `api/src/redis/redis.module.ts` como
+módulo `@Global()`, así Fase 2 y Fase 4 lo inyectan sin volver a
+configurarlo.
+
+**Nota de troubleshooting (ioredis + ESM):** con `"module": "nodenext"` en
+el `tsconfig.json`, `import Redis from 'ioredis'` rompe la compilación
+(“This expression is not constructable”). Hay que usar el import con
+nombre: `import { Redis } from 'ioredis'`.
+
+**Verificado end-to-end** con `docker compose up` (crear, listar, detalle,
+404 en subasta inexistente, 400 en body inválido, y las claves de Redis
+inspeccionadas con `redis-cli`).
 
 ## Fase 2 — Puja concurrente (el corazón del proyecto)
 
@@ -200,7 +223,7 @@ servicios, usen `127.0.0.1`, no `localhost`.
 - [ ] Actualizar UI en vivo al recibir `nuevaPuja` (sin refrescar)
 - [ ] Actualizar UI al recibir `subastaCerrada`
 
-## Fase 5 — Identificación simple del usuario
+## Fase 5 — Identificación simple del usuario 🙋 (asignada a un compañero, en curso)
 
 - [ ] Pantalla/modal para ingresar nombre (sin contraseña)
 - [ ] Guardar nombre en `localStorage`/`sessionStorage`

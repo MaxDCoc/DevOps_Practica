@@ -92,6 +92,7 @@ subasta:{id}              datos del ítem
 subasta:{id}:puja         monto actual   ← acceso concurrente, requiere cuidado
 subasta:{id}:historial    lista de pujas
 subasta:{id}:cierre       clave con TTL para el cierre automático
+subastas:index            set con los IDs de todas las subastas (para listar sin usar KEYS)
 ```
 
 ## El problema central: pujas concurrentes
