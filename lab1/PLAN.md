@@ -202,9 +202,9 @@ servicios, usen `127.0.0.1`, no `localhost`.
 
 ## Fase 5 — Identificación simple del usuario
 
-- [ ] Pantalla/modal para ingresar nombre (sin contraseña)
-- [ ] Guardar nombre en `localStorage`/`sessionStorage`
-- [ ] Enviar el nombre como `usuario` en cada puja
+- [x] Pantalla/modal para ingresar nombre (sin contraseña)
+- [x] Guardar nombre en `localStorage`/`sessionStorage`
+- [x] Enviar el nombre como `usuario` en cada puja
 
 ## Fase 6 — Infra completa (3 réplicas + balanceo)
 
