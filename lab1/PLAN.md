@@ -161,10 +161,10 @@ servicios, usen `127.0.0.1`, no `localhost`.
 - [x] Validación manual básica (400 si falta nombre, o los montos/duración
       no son números positivos)
 
-**Web** (queda para la rama de frontend, contra el contrato ya congelado)
-- [ ] Vista listado de subastas
-- [ ] Vista detalle de una subasta
-- [ ] Alta de subasta (formulario o seed de datos de prueba)
+**Web** ✅
+- [x] Vista listado de subastas
+- [x] Vista detalle de una subasta
+- [x] Alta de subasta (formulario con presets de duración y validación)
 
 **Decisión técnica:** para listar sin usar `KEYS subasta:*` (mala práctica
 en Redis en producción), se agregó un Set `subastas:index` con todos los
@@ -255,7 +255,7 @@ corto (3-5s), se puja, se espera el vencimiento, y el detalle pasa solo a
 `cerrada: true` con el `ganador` correcto (o `null` si nadie pujó). El log
 de `CierreListener` confirma el evento disparado.
 
-## Fase 4 — Tiempo real multi-réplica 🔶 (backend listo, falta Web)
+## Fase 4 — Tiempo real multi-réplica ✅ (backend y Web integrados)
 
 **API** — `api/src/realtime/`
 - [x] WebSocket Gateway (NestJS + Socket.IO) — `realtime.gateway.ts`, path
@@ -271,11 +271,11 @@ de `CierreListener` confirma el evento disparado.
       x2, una para publish y otra para subscribe, igual que en
       `CierreListener`)
 
-**Web** (queda para la rama de frontend)
-- [ ] `connectSocket()`
-- [ ] `suscribirseASubasta(id)`
-- [ ] Actualizar UI en vivo al recibir `nuevaPuja` (sin refrescar)
-- [ ] Actualizar UI al recibir `subastaCerrada`
+**Web** ✅
+- [x] `connectSocket()`
+- [x] `suscribirseASubasta(id)`
+- [x] Actualizar UI en vivo al recibir `nuevaPuja` (sin refrescar)
+- [x] Actualizar UI al recibir `subastaCerrada`
 
 **Contrato de WebSocket documentado en AGENTS.md** (path, eventos, ejemplo
 de cliente) para que Front pueda arrancar sin esperar nada más.
