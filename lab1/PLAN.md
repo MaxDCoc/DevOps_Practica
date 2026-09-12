@@ -143,64 +143,154 @@ marcaba el contenedor "unhealthy" y Traefik dejaba de enrutarle tráfico a
 healthcheck a `http://127.0.0.1:3000/...`. Si arman healthchecks para otros
 servicios, usen `127.0.0.1`, no `localhost`.
 
-## Fase 1 — Modelo de datos y CRUD de subastas
+## Fase 1 — Modelo de datos y CRUD de subastas 🔶 (backend listo, falta Web)
 
-**Redis (servicio dentro de la API)**
-- [ ] `saveSubasta(id, data)`
-- [ ] `getSubasta(id)`
-- [ ] `listSubastas()`
+**Redis (servicio dentro de la API)** — `api/src/subastas/subastas.repository.ts`
+- [x] `saveSubasta(subasta)`
+- [x] `getSubasta(id)`
+- [x] `listSubastas()`
+- [x] `getMontoActual(id)` (adelantado de Fase 2, lo pedía el detalle)
+- [x] `getHistorial(id)` (adelantado de Fase 2, lo pedía el detalle; devuelve
+      `[]` hasta que Fase 2 empiece a escribir con `appendHistorial`)
 
-**API**
-- [ ] `POST /api/subastas` — crear subasta (nombre, monto inicial, duración)
-- [ ] `GET /api/subastas` — listar
-- [ ] `GET /api/subastas/:id` — detalle + historial de pujas
+**API** — `api/src/subastas/subastas.{controller,service}.ts`
+- [x] `POST /api/subastas` — crear subasta (nombre, monto inicial, duración)
+- [x] `GET /api/subastas` — listar
+- [x] `GET /api/subastas/:id` — detalle + historial de pujas (404 si no
+      existe)
+- [x] Validación manual básica (400 si falta nombre, o los montos/duración
+      no son números positivos)
 
-**Web**
+**Web** (queda para la rama de frontend, contra el contrato ya congelado)
 - [ ] Vista listado de subastas
 - [ ] Vista detalle de una subasta
 - [ ] Alta de subasta (formulario o seed de datos de prueba)
 
-## Fase 2 — Puja concurrente (el corazón del proyecto)
+**Decisión técnica:** para listar sin usar `KEYS subasta:*` (mala práctica
+en Redis en producción), se agregó un Set `subastas:index` con todos los
+IDs. Ya está documentado en `AGENTS.md`. Cliente de Redis: `ioredis`
+(elegido pensando en Fase 2 — transacciones `MULTI/EXEC` — y Fase 4 —
+adaptador de Socket.IO). Vive en `api/src/redis/redis.module.ts` como
+módulo `@Global()`, así Fase 2 y Fase 4 lo inyectan sin volver a
+configurarlo.
 
-- [ ] `pujarIngenua(id, monto, usuario)` — versión sin atomicidad, a
-      propósito, para mostrar el bug en la demo (buscar monto, comparar en
-      JS, guardar)
-- [ ] `getMontoActual(id)`
-- [ ] `setMontoActualSiSupera(id, monto)` — atómico, con `WATCH/MULTI/EXEC`
-      o script Lua (`evalPuja.lua`)
-- [ ] `pujarAtomica(id, monto, usuario)` — versión corregida, usa la
-      función anterior
-- [ ] `appendHistorial(id, { monto, usuario, timestamp })`
-- [ ] `getHistorial(id)`
-- [ ] `POST /api/subastas/:id/pujas` →
+**Nota de troubleshooting (ioredis + ESM):** con `"module": "nodenext"` en
+el `tsconfig.json`, `import Redis from 'ioredis'` rompe la compilación
+(“This expression is not constructable”). Hay que usar el import con
+nombre: `import { Redis } from 'ioredis'`.
+
+**Verificado end-to-end** con `docker compose up` (crear, listar, detalle,
+404 en subasta inexistente, 400 en body inválido, y las claves de Redis
+inspeccionadas con `redis-cli`).
+
+## Fase 2 — Puja concurrente (el corazón del proyecto) ✅ (completa, verificada con tests e2e y a mano vía Traefik)
+
+**Redis** — `api/src/subastas/pujas.repository.ts`
+- [x] `getMontoActual(id)` (ya estaba de Fase 1)
+- [x] `setMontoActualSiSupera(id, monto)` — atómico, con **script Lua**
+      (`PUJAR_ATOMICO_SCRIPT`, registrado como comando custom
+      `pujarAtomico` vía `redis.defineCommand`). Se eligió Lua en vez de
+      `WATCH/MULTI/EXEC` porque resuelve la atomicidad en un solo viaje a
+      Redis, sin loop de reintento.
+- [x] `appendHistorial(id, { monto, usuario, timestamp })`
+- [x] `setMontoActualSinVerificar(id, monto)` — sin chequeo, solo para la
+      versión ingenua
+
+**API** — `api/src/subastas/pujas.{service,controller}.ts`
+- [x] `pujarAtomica(id, monto, usuario)` — versión corregida
+- [x] `pujarIngenua(id, monto, usuario)` — versión rota a propósito (lee,
+      espera 200ms simulando la ventana de carrera, escribe sin
+      revalidar), para el demo antes/después
+- [x] `POST /api/subastas/:id/pujas` →
       `200 { ok: true, montoActual }` /
       `409 { ok: false, motivo: "superada", montoActual }`
-- [ ] Test: dos pujas simultáneas al mismo monto → solo una gana
+- [x] `POST /api/subastas/:id/pujas/ingenua` — mismo contrato, usa la
+      versión rota (demo-only, no forma parte del contrato "real"; ver
+      AGENTS.md)
+- [x] Test e2e (`api/test/pujas-concurrencia.e2e-spec.ts`): dos pujas
+      simultáneas al mismo monto en la versión atómica → una gana (200) y
+      la otra recibe 409 "superada"; la misma prueba contra la versión
+      ingenua confirma que ahí ganan las dos (el bug reproducido a
+      propósito)
 
-## Fase 3 — Cierre automático
+**Verificado dos formas:** `npm run test:e2e` (contra Redis real en
+`localhost:6379`, hay que tener `docker compose up -d redis` corriendo) y
+a mano con `curl` en paralelo contra `http://localhost/api/...` (el camino
+real de Traefik), con el mismo resultado en ambos casos.
 
-- [ ] `setCierreConTTL(id, segundos)` al crear la subasta
-- [ ] Habilitar `notify-keyspace-events Ex` en la config de Redis
-- [ ] Listener de eventos `expired` (`__keyevent@0__:expired`)
-- [ ] `onSubastaExpirada(id)`
-- [ ] `determinarGanador(id)`
-- [ ] `marcarComoCerrada(id)`
+**Nota:** para que los tests e2e corran localmente sin Docker Desktop
+completo, se expuso el puerto de Redis al host (`6379:6379` en
+`docker-compose.yml`). No es necesario para producción, solo para poder
+testear desde la máquina sin entrar al contenedor.
 
-## Fase 4 — Tiempo real multi-réplica
+## Fase 3 — Cierre automático ✅ (completa, verificada con `docker compose up` esperando el TTL real)
 
-**API**
-- [ ] WebSocket Gateway (NestJS + Socket.IO)
-- [ ] `emitNuevaPuja(id, payload)`
-- [ ] `emitSubastaCerrada(id, ganador)`
-- [ ] Adaptador Redis para Socket.IO (pub/sub entre las 3 réplicas)
+- [x] `setCierreConTTL(id, segundos)` al crear la subasta —
+      `api/src/subastas/cierre.repository.ts`, llamado desde
+      `SubastasService.crear()`
+- [x] Habilitar `notify-keyspace-events Ex` en Redis — `command` del
+      servicio `redis` en `docker-compose.yml`
+- [x] Listener de eventos `expired` (`__keyevent@0__:expired`) —
+      `api/src/subastas/cierre.listener.ts`, usando una segunda conexión
+      dedicada (`redis.duplicate()`) porque una conexión en modo
+      `subscribe` no puede usarse para otros comandos
+- [x] `onSubastaExpirada(id)` — mismo archivo, se dispara desde el handler
+      del mensaje
+- [x] `determinarGanador(id)` — `subastas.repository.ts`: toma el último
+      elemento del historial (con `pujarAtomica`, el historial solo
+      contiene pujas ganadoras en orden, así que el último es el ganador;
+      `null` si nunca hubo pujas)
+- [x] `marcarComoCerrada(id, ganador)` — `subastas.repository.ts`, reescribe
+      solo el registro `subasta:{id}` (no toca `:puja` ni el índice)
 
-**Web**
+**Extra que no estaba en el checklist pero era necesario:** con el cierre
+ya andando, se podía seguir pujando en una subasta cerrada (el script Lua
+solo compara montos, no mira la bandera `cerrada`). Se agregó el chequeo en
+`PujasService`: pujar sobre una subasta cerrada ahora responde
+`409 { ok: false, motivo: "cerrada", montoActual }`. Documentado en
+AGENTS.md.
+
+**Verificado a mano contra el stack real:** subasta con `duracionSegundos`
+corto (3-5s), se puja, se espera el vencimiento, y el detalle pasa solo a
+`cerrada: true` con el `ganador` correcto (o `null` si nadie pujó). El log
+de `CierreListener` confirma el evento disparado.
+
+## Fase 4 — Tiempo real multi-réplica 🔶 (backend listo, falta Web)
+
+**API** — `api/src/realtime/`
+- [x] WebSocket Gateway (NestJS + Socket.IO) — `realtime.gateway.ts`, path
+      `/api/socket.io/` (no el default `/socket.io/`, para que Traefik lo
+      enrute a la API igual que el resto de `/api`)
+- [x] `emitNuevaPuja(id, payload)` — llamado desde `PujasService` (tanto en
+      `pujarAtomica` como en `pujarIngenua`, para que la demo del bug
+      también se vea en vivo)
+- [x] `emitSubastaCerrada(id, ganador)` — llamado desde `CierreListener`
+      cuando se cierra la subasta (Fase 3)
+- [x] Adaptador Redis para Socket.IO — `redis-io.adapter.ts`, conectado en
+      `main.ts` con dos conexiones dedicadas (`redisClient.duplicate()`
+      x2, una para publish y otra para subscribe, igual que en
+      `CierreListener`)
+
+**Web** (queda para la rama de frontend)
 - [ ] `connectSocket()`
 - [ ] `suscribirseASubasta(id)`
 - [ ] Actualizar UI en vivo al recibir `nuevaPuja` (sin refrescar)
 - [ ] Actualizar UI al recibir `subastaCerrada`
 
-## Fase 5 — Identificación simple del usuario
+**Contrato de WebSocket documentado en AGENTS.md** (path, eventos, ejemplo
+de cliente) para que Front pueda arrancar sin esperar nada más.
+
+**Verificado end-to-end** con un cliente `socket.io-client` de prueba
+contra el stack real (a través de Traefik en `http://localhost`): se creó
+una subasta, se pujó, y llegaron los dos eventos (`nuevaPuja` y
+`subastaCerrada` con el ganador) en tiempo real, sin polling.
+
+**Pendiente de verificar recién en Fase 6:** que el adaptador de Redis
+realmente propague eventos *entre* réplicas distintas (ahora mismo solo
+hay una instancia de la API corriendo, así que no hay nada que propagar
+todavía). La demo real de esto es con las 3 réplicas ya levantadas.
+
+## Fase 5 — Identificación simple del usuario 🙋 (asignada a un compañero, en curso)
 
 - [x] Pantalla/modal para ingresar nombre (sin contraseña)
 - [x] Guardar nombre en `localStorage`/`sessionStorage`
