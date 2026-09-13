@@ -314,6 +314,18 @@ todavía). La demo real de esto es con las 3 réplicas ya levantadas.
 - [x] Badge de estado del CI en el README
 - [x] Badge de valoración del análisis de seguridad en el README (workflow SAST)
 
+**Badges:** el SVG de Actions sin query mira la rama **default** (`main`).
+Si el pipeline solo corrió en `fases6y7`, el badge muestra "no status"
+aunque el commit tenga check verde. Usar:
+
+```
+https://github.com/MaxDCoc/DevOps_Practica/actions/workflows/ci.yml/badge.svg?branch=fases6y7
+https://github.com/MaxDCoc/DevOps_Practica/actions/workflows/sast.yml/badge.svg?branch=fases6y7
+```
+
+Al mergear a `main`, sacar el `?branch=...` (o cambiarlo a `main`) para que
+reflejen la rama default. Triggers de CI/SAST incluyen `fases6y7`.
+
 ## Fase 8 — Deploy en la nube
 
 - [ ] Servicio en Railway/Render/Cloud Run configurado para bajar la

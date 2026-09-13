@@ -1,7 +1,7 @@
 # DevOps_Practica
 
-![CI](https://github.com/MaxDCoc/DevOps_Practica/actions/workflows/ci.yml/badge.svg)
-![SAST](https://github.com/MaxDCoc/DevOps_Practica/actions/workflows/sast.yml/badge.svg)
+![CI](https://github.com/MaxDCoc/DevOps_Practica/actions/workflows/ci.yml/badge.svg?branch=fases6y7)
+![SAST](https://github.com/MaxDCoc/DevOps_Practica/actions/workflows/sast.yml/badge.svg?branch=fases6y7)
 
 TP1 DevOps — UTN FRRe 2026. Sistema de subastas en tiempo real (web + API + Redis contenerizados).
 

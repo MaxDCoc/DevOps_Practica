@@ -1,7 +1,7 @@
 # Lab 1 — Sistema de Subastas en Tiempo Real
 
-![CI](https://github.com/MaxDCoc/DevOps_Practica/actions/workflows/ci.yml/badge.svg)
-![SAST](https://github.com/MaxDCoc/DevOps_Practica/actions/workflows/sast.yml/badge.svg)
+![CI](https://github.com/MaxDCoc/DevOps_Practica/actions/workflows/ci.yml/badge.svg?branch=fases6y7)
+![SAST](https://github.com/MaxDCoc/DevOps_Practica/actions/workflows/sast.yml/badge.svg?branch=fases6y7)
 
 TP1 DevOps — UTN FRRe 2026. App web + API NestJS + Redis detrás de Traefik, con 3 réplicas de la API.
 
