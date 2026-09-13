@@ -296,20 +296,23 @@ todavía). La demo real de esto es con las 3 réplicas ya levantadas.
 - [x] Guardar nombre en `localStorage`/`sessionStorage`
 - [x] Enviar el nombre como `usuario` en cada puja
 
-## Fase 6 — Infra completa (3 réplicas + balanceo)
+## Fase 6 — Infra completa (3 réplicas + balanceo) ✅
 
-- [ ] `docker-compose` con 3 instancias de la API detrás de Traefik
-- [ ] Healthcheck de cada instancia usando `GET /api/health`
-- [ ] Verificar: refrescar y ver hostnames distintos
-- [ ] Verificar: `docker stop` de una instancia sin caída del servicio
+- [x] `docker-compose` con 3 instancias de la API detrás de Traefik
+      (`api1` / `api2` / `api3`, labels Traefik compartidas + sticky cookie)
+- [x] Healthcheck de cada instancia usando `GET /api/health`
+- [x] Verificar: refrescar y ver hostnames distintos
+- [x] Verificar: `docker stop` de una instancia sin caída del servicio
+- [x] Lock Redis `SET NX` en `CierreListener` para que solo una réplica
+      cierre la subasta al expirar el TTL
 
-## Fase 7 — Pipeline CI/CD
+## Fase 7 — Pipeline CI/CD ✅
 
-- [ ] Job `test` (npm ci + jest)
-- [ ] Job `sast` (Semgrep u otra herramienta)
-- [ ] Job `build-and-push` (build + push de imagen web y api a Docker Hub)
-- [ ] Badge de estado del CI en el README
-- [ ] Badge de valoración del análisis de seguridad en el README
+- [x] Job `test` (npm ci + Vitest unitarios en `lab1/api`)
+- [x] Job `sast` (Semgrep en `.github/workflows/sast.yml`)
+- [x] Job `build-and-push` (build + push de imagen web y api a Docker Hub)
+- [x] Badge de estado del CI en el README
+- [x] Badge de valoración del análisis de seguridad en el README (workflow SAST)
 
 ## Fase 8 — Deploy en la nube
 

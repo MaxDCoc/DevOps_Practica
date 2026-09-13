@@ -11,6 +11,7 @@ const SUFIJO = ':cierre';
 @Injectable()
 export class CierreListener implements OnModuleInit {
   private readonly logger = new Logger(CierreListener.name);
+  private readonly redis: Redis;
   private readonly subscriber: Redis;
 
   constructor(
@@ -18,6 +19,7 @@ export class CierreListener implements OnModuleInit {
     private readonly subastasRepository: SubastasRepository,
     private readonly realtimeGateway: RealtimeGateway,
   ) {
+    this.redis = redis;
     // Una conexión de Redis en modo `subscribe` queda dedicada a eso, así
     // que no se puede compartir con el cliente que usan los repositorios
     // para leer/escribir. `duplicate()` abre una segunda conexión con la
@@ -39,6 +41,13 @@ export class CierreListener implements OnModuleInit {
   }
 
   async onSubastaExpirada(id: string): Promise<void> {
+    // Con 3 réplicas, las tres reciben el keyspace event. Solo la que
+    // gana el lock cierra y emite; las demás salen.
+    const ok = await this.redis.set(`subasta:${id}:cerrando`, '1', 'EX', 60, 'NX');
+    if (ok !== 'OK') {
+      return;
+    }
+
     const ganador = await this.subastasRepository.determinarGanador(id);
     await this.subastasRepository.marcarComoCerrada(id, ganador);
     this.realtimeGateway.emitSubastaCerrada(id, ganador);
