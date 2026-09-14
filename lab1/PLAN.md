@@ -397,11 +397,33 @@ como material para el informe/coloquio, sección "dificultades"):
    (usando un ref para tener siempre el id más reciente), no solo cuando
    cambia el id de la subasta.
 
-## Fase 9 — Tests unitarios
+## Fase 9 — Tests unitarios ✅ (15 tests e2e, corriendo en local y en CI)
 
-- [ ] Test de concurrencia de `pujarAtomica` (simular condición de carrera)
-- [ ] Tests de endpoints con Supertest: crear, listar, pujar, health
-- [ ] Test de cierre automático (TTL simulado/mockeado)
+- [x] Test de concurrencia de `pujarAtomica` (simular condición de carrera)
+      — ya existía de la Fase 2, `api/test/pujas-concurrencia.e2e-spec.ts`
+      (incluye también el caso ingenuo: dos ganadores a propósito, para el
+      contraste de la demo)
+- [x] Tests de endpoints con Supertest: crear, listar, pujar, health
+      — `api/test/health.e2e-spec.ts`, `subastas.e2e-spec.ts`,
+      `pujas.e2e-spec.ts` (casos felices + 400/404/409)
+- [x] Test de cierre automático (TTL real corto, no mockeado — el cierre
+      depende de un evento real de Redis vía Pub/Sub, no se puede simular
+      con timers falsos) — `api/test/cierre.e2e-spec.ts`, cubre el caso
+      con ganador y el caso sin pujas
+
+**Hallazgo importante mientras se hacía esto:** `npm test` (lo que corría
+el CI) solo matchea archivos `*.spec.ts`. Todos los tests reales —
+incluido el de concurrencia que ya existía desde la Fase 2— son
+`*.e2e-spec.ts`, así que **el CI nunca los estaba ejecutando**, aunque
+estuvieran en el repo. Se corrigió `.github/workflows/ci.yml`:
+- Se agregó un servicio `redis:7-alpine` al job de tests.
+- Un paso nuevo habilita `notify-keyspace-events Ex` con `redis-cli` antes
+  de correr los tests (si no, el test de cierre automático fallaría en CI
+  aunque funcione en local).
+- El job ahora corre `npm test` **y** `npm run test:e2e`.
+
+**Verificado en local:** `npm run test:e2e` → 6 archivos, 15 tests, todos
+en verde, contra el Redis real de `docker-compose`.
 
 ## Fase 10 — Documentación final
 

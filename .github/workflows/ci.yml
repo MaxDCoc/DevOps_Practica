@@ -8,8 +8,18 @@ on:
 
 jobs:
   test:
-    name: Unit tests
+    name: Tests (unitarios + e2e)
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 5
     defaults:
       run:
         working-directory: lab1/api
@@ -21,7 +31,12 @@ jobs:
           cache: npm
           cache-dependency-path: lab1/api/package-lock.json
       - run: npm ci
+      - name: Habilitar keyspace notifications en Redis (necesario para el cierre automático)
+        run: |
+          sudo apt-get update && sudo apt-get install -y redis-tools
+          redis-cli -h localhost -p 6379 CONFIG SET notify-keyspace-events Ex
       - run: npm test
+      - run: npm run test:e2e
 
   build-and-push:
     name: Build and push Docker images
