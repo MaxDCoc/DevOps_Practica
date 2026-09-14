@@ -6,6 +6,7 @@ export interface Subasta {
   creadaEn: number;
   cerrada: boolean;
   ganador: string | null;
+  montoActual?: number;
 }
 
 export interface Puja {

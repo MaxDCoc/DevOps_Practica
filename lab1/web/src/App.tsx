@@ -7,6 +7,7 @@ import {
   CrearSubastaModal,
 } from './components/subastas'
 import { listarSubastas } from './api/subastas'
+import { useListadoSocket } from './hooks/useListadoSocket'
 import type { Subasta } from './types/subasta'
 import './App.css'
 
@@ -58,6 +59,25 @@ function SubastasApp() {
     setSubastas((prev) => [nueva, ...prev])
     setSubastaSeleccionadaId(nueva.id)
   }
+
+  // Tiempo real en el listado: la card se actualiza sola con cada puja o
+  // cierre de CUALQUIER subasta, y las que crean otros usuarios aparecen
+  // sin refrescar. El `some(...)` evita duplicar la que uno mismo acaba de
+  // crear (ya se agregó arriba, de forma optimista, al recibir la respuesta
+  // del POST).
+  useListadoSocket({
+    onNuevaPuja: ({ id, montoActual }) => {
+      setSubastas((prev) => prev.map((s) => (s.id === id ? { ...s, montoActual } : s)))
+    },
+    onSubastaCerrada: ({ id, ganador }) => {
+      setSubastas((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, cerrada: true, ganador } : s)),
+      )
+    },
+    onSubastaCreada: (subasta) => {
+      setSubastas((prev) => (prev.some((s) => s.id === subasta.id) ? prev : [subasta, ...prev]))
+    },
+  })
 
   return (
     <div className="app-shell">

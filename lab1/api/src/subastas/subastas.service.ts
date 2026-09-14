@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { SubastasRepository } from './subastas.repository.js';
 import { CierreRepository } from './cierre.repository.js';
+import { RealtimeGateway } from '../realtime/realtime.gateway.js';
 import type { CrearSubastaDto } from './subasta.model.js';
 
 @Injectable()
@@ -9,6 +10,7 @@ export class SubastasService {
   constructor(
     private readonly repository: SubastasRepository,
     private readonly cierreRepository: CierreRepository,
+    private readonly realtimeGateway: RealtimeGateway,
   ) {}
 
   async crear(dto: CrearSubastaDto) {
@@ -34,6 +36,7 @@ export class SubastasService {
 
     await this.repository.saveSubasta(subasta);
     await this.cierreRepository.setCierreConTTL(subasta.id, subasta.duracionSegundos);
+    this.realtimeGateway.emitSubastaCreada(subasta);
     return subasta;
   }
 

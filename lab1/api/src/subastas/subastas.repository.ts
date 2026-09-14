@@ -27,10 +27,22 @@ export class SubastasRepository {
     const ids = await this.redis.smembers(INDEX_KEY);
     if (ids.length === 0) return [];
 
-    const raws = await this.redis.mget(ids.map((id: string) => `subasta:${id}`));
-    return raws
-      .filter((raw: string | null): raw is string => raw !== null)
-      .map((raw: string) => JSON.parse(raw) as Subasta);
+    const [subastaRaws, montoRaws] = await Promise.all([
+      this.redis.mget(ids.map((id: string) => `subasta:${id}`)),
+      this.redis.mget(ids.map((id: string) => `subasta:${id}:puja`)),
+    ]);
+
+    const subastas: Subasta[] = [];
+    subastaRaws.forEach((raw: string | null, i: number) => {
+      if (raw === null) return;
+      const subasta = JSON.parse(raw) as Subasta;
+      const monto = montoRaws[i];
+      subastas.push({
+        ...subasta,
+        montoActual: monto === null ? subasta.montoInicial : Number(monto),
+      });
+    });
+    return subastas;
   }
 
   async getMontoActual(id: string): Promise<number | null> {
