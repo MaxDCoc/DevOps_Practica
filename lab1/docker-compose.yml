@@ -43,7 +43,7 @@ services:
       # config de nginx no falle al arrancar. En la nube se sobreescribe
       # con la URL pública real de la API.
       - API_URL=http://api1:3000
-      - DNS_RESOLVER=127.0.0.11
+      - NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
     labels:
       - traefik.enable=true
       - traefik.http.routers.web.rule=PathPrefix(`/`)
