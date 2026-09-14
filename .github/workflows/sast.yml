@@ -1,0 +1,16 @@
+name: SAST
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan lab1
+        run: semgrep scan --config=auto --error --severity=ERROR lab1/

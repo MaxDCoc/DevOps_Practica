@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Tests (unitarios + e2e)
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: lab1/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: lab1/api/package-lock.json
+      - run: npm ci
+      - name: Habilitar keyspace notifications en Redis (necesario para el cierre automático)
+        run: |
+          sudo apt-get update && sudo apt-get install -y redis-tools
+          redis-cli -h localhost -p 6379 CONFIG SET notify-keyspace-events Ex
+      - run: npm test
+      - run: npm run test:e2e
+
+  build-and-push:
+    name: Build and push Docker images
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: lab1/api
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/subastas-api:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/subastas-api:${{ github.sha }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: lab1/web
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/subastas-web:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/subastas-web:${{ github.sha }}

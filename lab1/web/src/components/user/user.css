@@ -1,0 +1,164 @@
+/* Estilos para el sistema de usuario (Fase 5) */
+
+.user-badge-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: #f1f5f9;
+  padding: 0.4rem 0.8rem;
+  border-radius: 9999px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.9rem;
+}
+
+.user-badge-info {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #1e293b;
+}
+
+.user-badge-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.user-btn-secondary {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.user-btn-secondary:hover {
+  background-color: #e2e8f0;
+  text-decoration: underline;
+}
+
+.user-btn-primary {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.user-btn-primary:hover {
+  background-color: #1d4ed8;
+}
+
+.user-btn-primary:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* Modal */
+.user-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 1rem;
+}
+
+.user-modal-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.75rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
+}
+
+.user-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.user-modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.user-modal-description {
+  margin: 0.35rem 0 0 0;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.user-modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.2rem;
+  line-height: 1;
+}
+
+.user-modal-close-btn:hover {
+  color: #475569;
+}
+
+.user-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.user-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.user-modal-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #334155;
+}
+
+.user-modal-input {
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 1rem;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.user-modal-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.user-modal-error {
+  color: #dc2626;
+  font-size: 0.8rem;
+}
+
+.user-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
