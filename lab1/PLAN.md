@@ -326,7 +326,7 @@ https://github.com/MaxDCoc/DevOps_Practica/actions/workflows/sast.yml/badge.svg?
 Al mergear a `main`, sacar el `?branch=...` (o cambiarlo a `main`) para que
 reflejen la rama default. Triggers de CI/SAST incluyen `fases6y7`.
 
-## Fase 8 — Deploy en la nube 🔶 (repo listo, falta hacer el deploy en el dashboard)
+## Fase 8 — Deploy en la nube ✅ (desplegado y verificado en Railway)
 
 **Problema que había que resolver primero:** el código de la web usa rutas
 relativas (`fetch('/api/subastas')`). Localmente eso funciona porque
@@ -354,23 +354,48 @@ código de Front para un problema de infra.
 - [x] Verificado que el fix no rompió nada local: `docker compose up`,
       balanceo entre las 3 réplicas y creación de subastas siguen andando.
 
-**Falta hacer (requiere el dashboard del proveedor, no se puede automatizar
-desde acá):**
-- [ ] Elegir proveedor (Railway recomendado: permite pasar un comando
-      custom al contenedor de Redis, necesario para
-      `--notify-keyspace-events Ex` — sin eso el cierre automático de la
-      Fase 3 no funciona. Los "Redis administrados" de la mayoría de los
-      free tiers no dejan tocar esa config.)
-- [ ] Servicio `api` desde imagen `mateodiezq/subastas-api:latest`, puerto
-      3000, env vars `REDIS_HOST`/`REDIS_PORT` apuntando al servicio redis
-      del mismo proveedor
-- [ ] Servicio `redis` desde imagen `redis:7-alpine`, comando
-      `redis-server --notify-keyspace-events Ex` (igual que en
-      `docker-compose.yml`)
-- [ ] Servicio `web` desde imagen `mateodiezq/subastas-web:latest`, puerto
-      80, env var `API_URL` = URL pública del servicio `api` de arriba
-- [ ] Nota: acá alcanza con **una sola instancia** de cada uno; réplicas en
-      cloud es mejora opcional, no requisito
+**Deploy en Railway (3 servicios, todos desde imagen de Docker Hub, no
+build desde código):**
+- [x] Proveedor: Railway (permite pasarle un comando custom al contenedor
+      de Redis, necesario para `--notify-keyspace-events Ex`; la mayoría
+      de los Redis "administrados" gratuitos no dejan tocar esa config, y
+      sin eso el cierre automático de la Fase 3 no funciona en la nube)
+- [x] Servicio `redis` — imagen `redis:7-alpine`, comando
+      `redis-server --notify-keyspace-events Ex`, sin dominio público
+      (solo red privada)
+- [x] Servicio `api` — imagen `mateodiezq/subastas-api:latest`, puerto
+      3000, env vars `REDIS_HOST=redis.railway.internal`, `REDIS_PORT=6379`,
+      `PORT=3000`, dominio público generado
+- [x] Servicio `web` — imagen `mateodiezq/subastas-web:latest`, puerto 80,
+      env vars `API_URL=http://api.railway.internal:3000` (red privada,
+      **no** la URL pública: conectarse a la propia URL pública desde
+      adentro de la misma nube falló por "hairpin"/loopback bloqueado) y
+      `NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1`
+- [x] Una sola instancia de cada uno (cumple la consigna: en la nube
+      alcanza con eso, réplicas ahí es mejora opcional)
+
+**Bugs reales encontrados y resueltos durante el deploy** (quedan también
+como material para el informe/coloquio, sección "dificultades"):
+1. Railway devolvía "Application failed to respond" en `web` — el target
+   port del dominio público no coincidía con el 80 real de nginx.
+2. `nginx` no arrancaba (`host not found in resolver`) — el resolver
+   hardcodeado (`127.0.0.11`, DNS de Docker) no existe fuera de
+   docker-compose. Se resolvió usando `NGINX_LOCAL_RESOLVERS`, una función
+   de la propia imagen oficial de nginx que autodetecta el resolver
+   correcto leyendo `/etc/resolv.conf` del contenedor (hay que activarla
+   con `NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1`, viene apagada por defecto).
+3. Con el resolver ya andando, `nginx` sí resolvía el dominio público de
+   la API pero fallaba al conectarse (`Address not available`, errno 99):
+   problema de "hairpin" — conectarse a la propia IP pública desde dentro
+   de la misma nube. Se resolvió usando la red privada de Railway
+   (`api.railway.internal:3000`) en vez del dominio público.
+4. Ya funcionando el deploy, el monto y el estado de la subasta no se
+   actualizaban solos en la pantalla: `useSubastaSocket.ts` intentaba
+   suscribirse a la sala de la subasta en un efecto separado que podía
+   correr antes de que el socket terminara de conectar, y nunca
+   reintentaba. Se arregló re-suscribiendo en cada evento `connect`
+   (usando un ref para tener siempre el id más reciente), no solo cuando
+   cambia el id de la subasta.
 
 ## Fase 9 — Tests unitarios
 
