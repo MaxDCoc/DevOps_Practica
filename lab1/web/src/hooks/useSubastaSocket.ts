@@ -26,6 +26,7 @@ export function useSubastaSocket({
 
   const onNuevaPujaRef = useRef(onNuevaPuja)
   const onSubastaCerradaRef = useRef(onSubastaCerrada)
+  const subastaIdRef = useRef(subastaId)
 
   useEffect(() => {
     onNuevaPujaRef.current = onNuevaPuja
@@ -42,6 +43,14 @@ export function useSubastaSocket({
 
     socket.on('connect', () => {
       setConectado(true)
+      // Re-suscribirse acá (no solo en el efecto de más abajo): si ese
+      // efecto corrió antes de que terminara el handshake, el emit se
+      // perdía porque el socket todavía no estaba conectado, y nunca se
+      // reintentaba. En cada connect/reconnect nos suscribimos de nuevo
+      // con el id más reciente.
+      if (subastaIdRef.current) {
+        socket.emit('suscribirseASubasta', subastaIdRef.current)
+      }
     })
 
     socket.on('disconnect', () => {
@@ -65,8 +74,11 @@ export function useSubastaSocket({
     }
   }, [])
 
-  // Cuando cambia subastaId, suscribirse en el socket ya existente
+  // Cuando cambia subastaId, suscribirse en el socket ya existente (si ya
+  // está conectado). subastaIdRef siempre queda con el valor más reciente
+  // para que el handler de "connect" de arriba lo use en reconexiones.
   useEffect(() => {
+    subastaIdRef.current = subastaId
     if (socketRef.current && socketRef.current.connected && subastaId) {
       socketRef.current.emit('suscribirseASubasta', subastaId)
     }
