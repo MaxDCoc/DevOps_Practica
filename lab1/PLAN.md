@@ -326,12 +326,50 @@ https://github.com/MaxDCoc/DevOps_Practica/actions/workflows/sast.yml/badge.svg?
 Al mergear a `main`, sacar el `?branch=...` (o cambiarlo a `main`) para que
 reflejen la rama default. Triggers de CI/SAST incluyen `fases6y7`.
 
-## Fase 8 — Deploy en la nube
+## Fase 8 — Deploy en la nube 🔶 (repo listo, falta hacer el deploy en el dashboard)
 
-- [ ] Servicio en Railway/Render/Cloud Run configurado para bajar la
-      imagen desde Docker Hub (no build desde código fuente)
-- [ ] Variables de entorno cargadas en el proveedor cloud
-- [ ] Nota: acá alcanza con **una sola instancia** funcionando; réplicas en
+**Problema que había que resolver primero:** el código de la web usa rutas
+relativas (`fetch('/api/subastas')`). Localmente eso funciona porque
+Traefik intercepta `/api` antes de que llegue a nginx. En la nube, si `web`
+y `api` son dos servicios con URLs públicas distintas, esas mismas rutas
+relativas apuntarían al dominio de la web y darían 404 — y agregar CORS +
+una URL absoluta hardcodeada en el código de React hubiera sido tocar
+código de Front para un problema de infra.
+
+- [x] `web/nginx.conf.template` — el propio nginx de la imagen `web`
+      reenvía `/api/*` hacia `API_URL` (variable de entorno del
+      contenedor). Cero cambios en `web/src`: el fetch relativo sigue
+      funcionando igual, local y en la nube.
+- [x] `web/Dockerfile` copia esa plantilla a
+      `/etc/nginx/templates/default.conf.template` (la imagen oficial de
+      nginx la procesa sola al arrancar).
+- [x] `docker-compose.yml`: `API_URL=http://api1:3000` como default local
+      (nunca se usa de verdad ahí, pero nginx necesita un valor válido para
+      no fallar al arrancar).
+- [x] Fix de una carrera real encontrada al probar esto: nginx resolvía el
+      host de `proxy_pass` una sola vez al arrancar, y si el contenedor
+      destino todavía no estaba listo, nginx no levantaba. Se arregló con
+      `resolver 127.0.0.11` (DNS interno de Docker) + `set` para forzar
+      resolución por request en vez de al inicio.
+- [x] Verificado que el fix no rompió nada local: `docker compose up`,
+      balanceo entre las 3 réplicas y creación de subastas siguen andando.
+
+**Falta hacer (requiere el dashboard del proveedor, no se puede automatizar
+desde acá):**
+- [ ] Elegir proveedor (Railway recomendado: permite pasar un comando
+      custom al contenedor de Redis, necesario para
+      `--notify-keyspace-events Ex` — sin eso el cierre automático de la
+      Fase 3 no funciona. Los "Redis administrados" de la mayoría de los
+      free tiers no dejan tocar esa config.)
+- [ ] Servicio `api` desde imagen `mateodiezq/subastas-api:latest`, puerto
+      3000, env vars `REDIS_HOST`/`REDIS_PORT` apuntando al servicio redis
+      del mismo proveedor
+- [ ] Servicio `redis` desde imagen `redis:7-alpine`, comando
+      `redis-server --notify-keyspace-events Ex` (igual que en
+      `docker-compose.yml`)
+- [ ] Servicio `web` desde imagen `mateodiezq/subastas-web:latest`, puerto
+      80, env var `API_URL` = URL pública del servicio `api` de arriba
+- [ ] Nota: acá alcanza con **una sola instancia** de cada uno; réplicas en
       cloud es mejora opcional, no requisito
 
 ## Fase 9 — Tests unitarios

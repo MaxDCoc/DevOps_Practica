@@ -37,6 +37,13 @@ services:
 
   web:
     build: ./web
+    environment:
+      # Sin uso en local: Traefik intercepta /api antes de que llegue a
+      # nginx. Solo hace falta un valor sintácticamente válido para que la
+      # config de nginx no falle al arrancar. En la nube se sobreescribe
+      # con la URL pública real de la API.
+      - API_URL=http://api1:3000
+      - DNS_RESOLVER=127.0.0.11
     labels:
       - traefik.enable=true
       - traefik.http.routers.web.rule=PathPrefix(`/`)
