@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, feature/integracion, fases6y7, docs/fase10-documentacion]
+    branches: [main, feature/integracion, fases6y7, docs/fase10-documentacion, feature/fase8-cloud]
   pull_request:
-    branches: [main, feature/integracion, fases6y7, docs/fase10-documentacion]
+    branches: [main, feature/integracion, fases6y7, docs/fase10-documentacion, feature/fase8-cloud]
 
 jobs:
   test:
