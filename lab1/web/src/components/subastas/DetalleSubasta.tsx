@@ -163,13 +163,13 @@ export function DetalleSubasta({
   }
 
   if (cargando) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando detalle de subasta...</div>
+    return <div className="subastas-loading">Cargando detalle de subasta…</div>
   }
 
   if (error || !subasta) {
     return (
       <div className="detalle-panel">
-        <p style={{ color: '#dc2626' }}>{error || 'Subasta no encontrada'}</p>
+        <p className="alert alert-error">{error || 'Subasta no encontrada'}</p>
         {onVolver && (
           <button type="button" className="user-btn-secondary" onClick={onVolver}>
             &larr; Volver al listado
@@ -184,44 +184,31 @@ export function DetalleSubasta({
       <div className="detalle-header">
         <div>
           {onVolver && (
-            <button
-              type="button"
-              className="user-btn-secondary"
-              onClick={onVolver}
-              style={{ marginBottom: '0.5rem', paddingLeft: 0 }}
-            >
+            <button type="button" className="detalle-back" onClick={onVolver}>
               &larr; Volver a todas las subastas
             </button>
           )}
           <h2 className="detalle-title">{subasta.nombre}</h2>
-          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>ID: {subasta.id}</span>
+          <span className="detalle-id">ID: {subasta.id}</span>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
+        <div className="detalle-status">
           {subasta.cerrada ? (
-            <span className="badge badge-cerrada">Subasta Finalizada</span>
+            <span className="badge badge-cerrada">Subasta finalizada</span>
           ) : (
-            <span className="badge badge-activa">
-              Activa {segundosRestantes !== null ? `(${segundosRestantes}s restantes)` : ''}
+            <span className="badge badge-live">
+              <span className="pulse-dot" /> Activa
+              {segundosRestantes !== null ? ` · ${segundosRestantes}s restantes` : ''}
             </span>
           )}
 
           <span
-            style={{
-              fontSize: '0.75rem',
-              color: conectado ? '#16a34a' : '#94a3b8',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
+            className="detalle-socket-indicator"
+            style={{ color: conectado ? 'var(--success)' : 'var(--text-dim)' }}
           >
             <span
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                background: conectado ? '#16a34a' : '#94a3b8',
-              }}
+              className="detalle-socket-dot"
+              style={{ background: conectado ? 'var(--success)' : 'var(--text-dim)' }}
             />
             {conectado ? 'Socket en vivo' : 'Desconectado'}
           </span>
@@ -229,21 +216,9 @@ export function DetalleSubasta({
       </div>
 
       {subasta.cerrada && (
-        <div
-          style={{
-            background: '#eff6ff',
-            border: '1px solid #bfdbfe',
-            padding: '1rem',
-            borderRadius: '8px',
-            marginBottom: '1.25rem',
-          }}
-        >
-          <h4 style={{ margin: 0, color: '#1e40af', fontSize: '1.1rem' }}>
-            🏆 Ganador: <strong>{subasta.ganador ? subasta.ganador : 'Nadie pujó'}</strong>
-          </h4>
-          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.9rem', color: '#3b82f6' }}>
-            Monto final de cierre: ${subasta.montoActual}
-          </p>
+        <div className="ganador-banner">
+          <h4>🏆 Ganador: {subasta.ganador ? subasta.ganador : 'Nadie pujó'}</h4>
+          <p>Monto final de cierre: ${subasta.montoActual}</p>
         </div>
       )}
 
@@ -254,17 +229,13 @@ export function DetalleSubasta({
           <p className={`monto-destacado ${animarMonto ? 'monto-animado' : ''}`}>
             ${subasta.montoActual}
           </p>
-          <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-            Precio inicial: ${subasta.montoInicial}
-          </span>
+          <span className="subtitle">Precio inicial: ${subasta.montoInicial}</span>
         </div>
 
         {/* Bloque de Formulario de Puja */}
         <div className="puja-form-box">
-          <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#0f172a' }}>
-            Realizar una Puja
-          </h3>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+          <h3>Realizar una puja</h3>
+          <p className="pujando-como">
             {usuario ? (
               <>Pujando como <strong>👤 {usuario}</strong></>
             ) : (
@@ -287,9 +258,8 @@ export function DetalleSubasta({
                 type="submit"
                 className="user-btn-primary"
                 disabled={subasta.cerrada || pujando}
-                style={{ padding: '0.6rem 1.25rem' }}
               >
-                {pujando ? 'Enviando...' : 'Pujar'}
+                {pujando ? 'Enviando…' : 'Pujar'}
               </button>
             </div>
 
@@ -316,8 +286,8 @@ export function DetalleSubasta({
               <span>{mensajeResultado.texto}</span>
               <button
                 type="button"
+                className="alert-close"
                 onClick={() => setMensajeResultado(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
               >
                 &times;
               </button>
@@ -328,26 +298,25 @@ export function DetalleSubasta({
 
       {/* Historial de Pujas en Vivo */}
       <div className="historial-box">
-        <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.05rem', color: '#1e293b' }}>
-          Historial de Pujas ({subasta.historial.length})
-        </h3>
+        <h3>Historial de pujas ({subasta.historial.length})</h3>
         {subasta.historial.length === 0 ? (
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>
+          <p className="historial-vacio">
             Aún no se registraron ofertas para esta subasta. ¡Sé el primero en ofertar!
           </p>
         ) : (
           <div className="historial-lista">
             {subasta.historial.map((p, idx) => (
               <div key={`${p.timestamp}-${idx}`} className="historial-item">
-                <div>
-                  <strong>👤 {p.usuario}</strong>
-                  <span style={{ fontSize: '0.8rem', color: '#64748b', marginLeft: '0.5rem' }}>
+                <div className="historial-usuario">
+                  <span className="historial-avatar">
+                    {p.usuario.slice(0, 2).toUpperCase()}
+                  </span>
+                  <strong>{p.usuario}</strong>
+                  <span className="historial-hora">
                     {new Date(p.timestamp).toLocaleTimeString()}
                   </span>
                 </div>
-                <div style={{ fontWeight: 700, color: '#15803d' }}>
-                  ${p.monto}
-                </div>
+                <div className="historial-monto">${p.monto}</div>
               </div>
             ))}
           </div>

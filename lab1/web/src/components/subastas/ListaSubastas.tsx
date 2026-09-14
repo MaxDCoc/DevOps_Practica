@@ -19,11 +19,9 @@ export function ListaSubastas({
     <div className="subastas-container">
       <div className="subastas-header-actions">
         <div>
-          <h2 style={{ margin: 0, fontSize: '1.35rem', color: '#0f172a' }}>
-            Subastas Disponibles
-          </h2>
-          <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-            Haz clic en un ítem para ver el detalle y pujar en tiempo real.
+          <h2>Subastas disponibles</h2>
+          <span className="subtitle">
+            Hacé clic en un ítem para ver el detalle y pujar en tiempo real.
           </span>
         </div>
         <button
@@ -31,29 +29,15 @@ export function ListaSubastas({
           className="user-btn-primary"
           onClick={onCrearClick}
         >
-          + Publicar Subasta
+          + Publicar subasta
         </button>
       </div>
 
-      {cargando && (
-        <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-          Cargando subastas...
-        </div>
-      )}
+      {cargando && <div className="subastas-loading">Cargando subastas…</div>}
 
       {!cargando && subastas.length === 0 && (
-        <div
-          style={{
-            background: '#f8fafc',
-            border: '2px dashed #cbd5e1',
-            borderRadius: '10px',
-            padding: '3rem 1.5rem',
-            textAlign: 'center',
-          }}
-        >
-          <p style={{ fontSize: '1.1rem', color: '#475569', margin: '0 0 1rem 0' }}>
-            No hay ninguna subasta activa por el momento.
-          </p>
+        <div className="subastas-empty">
+          <p>No hay ninguna subasta activa por el momento.</p>
           <button
             type="button"
             className="user-btn-primary"
@@ -85,7 +69,9 @@ export function ListaSubastas({
                     {s.cerrada ? (
                       <span className="badge badge-cerrada">Cerrada</span>
                     ) : (
-                      <span className="badge badge-activa">Activa</span>
+                      <span className="badge badge-live">
+                        <span className="pulse-dot" /> En vivo
+                      </span>
                     )}
                   </div>
 
@@ -97,9 +83,7 @@ export function ListaSubastas({
                 <div className="subasta-card-meta">
                   <span>Monto base: ${s.montoInicial}</span>
                   {s.cerrada ? (
-                    <span style={{ color: '#2563eb', fontWeight: 500 }}>
-                      Ganador: {s.ganador || 'Sin pujas'}
-                    </span>
+                    <span className="ganador">Ganador: {s.ganador || 'Sin pujas'}</span>
                   ) : (
                     <span>Duración: {s.duracionSegundos}s</span>
                   )}

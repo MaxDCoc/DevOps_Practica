@@ -21,9 +21,13 @@ function SubastasApp() {
   const [subastaSeleccionadaId, setSubastaSeleccionadaId] = useState<string | null>(null)
   const [modalCrearAbierto, setModalCrearAbierto] = useState(false)
 
-  // Consultar healthcheck de la API
+  // Consultar healthcheck de la API. credentials: 'omit' es a propósito: la
+  // sticky cookie de Traefik (api_sticky) pinea todo /api a la misma réplica
+  // una vez que el navegador la recibe, así que el botón "Probar balanceo"
+  // mostraría siempre el mismo hostname después del primer click. Al no
+  // mandar/guardar esa cookie acá, cada click vuelve a repartir round-robin.
   const verificarHealth = useCallback(() => {
-    fetch('/api/health')
+    fetch('/api/health', { credentials: 'omit' })
       .then((res) => res.json())
       .then((data: Health) => {
         setHealth(data)
@@ -56,57 +60,28 @@ function SubastasApp() {
   }
 
   return (
-    <main style={{ fontFamily: 'system-ui, sans-serif', maxWidth: '900px', margin: '0 auto', padding: '1.5rem' }}>
+    <div className="app-shell">
       {/* Header Principal con Identificación de Usuario (Fase 5) */}
-      <header
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          borderBottom: '1px solid #e2e8f0',
-          paddingBottom: '1rem',
-          marginBottom: '1.5rem',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
-        <div>
-          <h1 style={{ margin: 0, fontSize: '1.75rem', color: '#0f172a' }}>
-            🔨 Sistema de Subastas
-          </h1>
-          <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-            TP DevOps UTN FRRe 2026 — Tiempo Real & Concurrencia con Redis
-          </span>
+      <header className="app-header">
+        <div className="app-brand">
+          <div className="app-brand-mark">🔨</div>
+          <div className="app-brand-text">
+            <h1>Rematé</h1>
+            <span>Subastas en vivo · Tiempo real con Redis</span>
+          </div>
         </div>
         <UserBadge />
       </header>
 
       {/* Banner de Infraestructura y Réplicas (Fase 0 & Fase 6) */}
-      <section
-        style={{
-          background: '#f8fafc',
-          padding: '0.85rem 1.25rem',
-          borderRadius: '8px',
-          border: '1px solid #e2e8f0',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-        }}
-      >
-        <div>
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', display: 'block' }}>
-            Infraestructura (API & Proxy Traefik)
-          </span>
-          {errorApi && <span style={{ color: '#dc2626', fontSize: '0.85rem' }}>{errorApi}</span>}
-          {!errorApi && !health && (
-            <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Consultando /api/health...</span>
-          )}
+      <section className="status-strip">
+        <div className="status-strip-info">
+          <span className={`status-dot ${errorApi ? 'error' : health ? 'ok' : ''}`} />
+          {errorApi && <span>{errorApi}</span>}
+          {!errorApi && !health && <span>Consultando /api/health…</span>}
           {health && (
-            <span style={{ color: '#16a34a', fontSize: '0.85rem' }}>
-              API: <strong>{health.status}</strong> — Atendió la réplica: <code>{health.hostname}</code>
+            <span>
+              API {health.status} · réplica <code>{health.hostname}</code>
             </span>
           )}
         </div>
@@ -115,30 +90,31 @@ function SubastasApp() {
           className="user-btn-secondary"
           onClick={verificarHealth}
           title="Verifica el balanceo de carga entre las réplicas"
-          style={{ fontSize: '0.8rem', border: '1px solid #cbd5e1' }}
         >
-          🔄 Probar balanceo
+          Probar balanceo ↻
         </button>
       </section>
 
-      {/* Vista Principal: Detalle o Listado */}
-      {subastaSeleccionadaId ? (
-        <DetalleSubasta
-          subastaId={subastaSeleccionadaId}
-          onVolver={() => {
-            setSubastaSeleccionadaId(null)
-            cargarSubastas()
-          }}
-        />
-      ) : (
-        <ListaSubastas
-          subastas={subastas}
-          subastaSeleccionadaId={subastaSeleccionadaId}
-          onSeleccionar={(id) => setSubastaSeleccionadaId(id)}
-          onCrearClick={() => setModalCrearAbierto(true)}
-          cargando={cargandoSubastas}
-        />
-      )}
+      <main className="app-main">
+        {/* Vista Principal: Detalle o Listado */}
+        {subastaSeleccionadaId ? (
+          <DetalleSubasta
+            subastaId={subastaSeleccionadaId}
+            onVolver={() => {
+              setSubastaSeleccionadaId(null)
+              cargarSubastas()
+            }}
+          />
+        ) : (
+          <ListaSubastas
+            subastas={subastas}
+            subastaSeleccionadaId={subastaSeleccionadaId}
+            onSeleccionar={(id) => setSubastaSeleccionadaId(id)}
+            onCrearClick={() => setModalCrearAbierto(true)}
+            cargando={cargandoSubastas}
+          />
+        )}
+      </main>
 
       {/* Modales */}
       <IdentificarUsuarioModal />
@@ -147,7 +123,7 @@ function SubastasApp() {
         onCerrar={() => setModalCrearAbierto(false)}
         onSubastaCreada={handleSubastaCreada}
       />
-    </main>
+    </div>
   )
 }
 

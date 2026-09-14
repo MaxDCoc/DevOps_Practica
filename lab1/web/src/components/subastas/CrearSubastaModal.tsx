@@ -110,7 +110,7 @@ export function CrearSubastaModal({
             <label htmlFor="subasta-duracion" className="user-modal-label">
               Duración en segundos (TTL en Redis)
             </label>
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.4rem' }}>
+            <div className="duracion-presets">
               <button
                 type="button"
                 className="user-btn-secondary"
