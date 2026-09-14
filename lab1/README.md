@@ -60,9 +60,7 @@ Portero (Traefik) — recibe todas las visitas en el puerto 80
 - **El portero (Traefik):** es quien recibe todo y reparte. Si pedís la página te manda a la Web, si pedís datos te manda a uno de los 3 servidores. Para que el vivo no se corte, recuerda con una galletita (`api_sticky`) a qué servidor estás mirando.
 - **La memoria compartida (Redis):** es donde se guarda lo importante: cuánto va cada subasta, quién ofreció y cuánto falta para el cierre. La página nunca la toca directo, solo los servidores. Así las 3 copias siempre ven lo mismo.
 
-## Qué ya anda y qué falta
-
-**Ya funciona (Fases 0 a 7):**
+## Qué ya anda (Fases 0 a 9, todo verificado)
 
 - La página, los 3 servidores, el portero y la memoria prenden con un comando.
 - Se pueden crear subastas, ver la lista, entrar al detalle, pujar con nombre y ver todo en vivo.
@@ -70,12 +68,11 @@ Portero (Traefik) — recibe todas las visitas en el puerto 80
 - Cuando se acaba el tiempo, se cierra sola y dice el ganador.
 - Si se apaga un servidor a propósito (`docker stop`), la página sigue andando.
 - Hay robots que revisan el código solos cada vez que se sube algo: uno corre las pruebas y arma las cajas para publicar (CI), otro busca errores de seguridad (SAST con Semgrep).
+- **En internet (Fase 8):** ya está prendido en Railway con las cajas `mateodiezq/subastas-api:latest` y `mateodiezq/subastas-web:latest` (bajadas del Hub, no del código), con su memoria Redis al lado. Allá corre 1 copia de cada uno, que es lo que pide la consigna.
+- **Pruebas (Fase 9):** hay 15 pruebas automáticas que se corren solas: salud, crear, listar, pujar (casos buenos y errores 400/404/409), cierre con y sin ganador, y choque de pujas. El robot CI las corre contra una memoria real.
 
-**Todavía falta:**
-
-- **Fase 8 — Subirlo a internet:** hoy anda solo en la compu local. Falta prenderlo en un servicio de nube (Railway, Render o similar) usando las cajas ya publicadas en Docker Hub. Con una sola copia alcanza.
-- **Fase 9 — Más pruebas formales:** hay una prueba de pujas simultáneas, pero faltan las pruebas prolijas de crear, listar, pujar y cierre automático.
-- **Fase 10 — Este documento:** se congela el domingo antes de la entrega del lunes 14/9.
+**Solo queda:**
+- **Fase 10 — Este documento:** se congela hoy antes de la entrega del lunes 14/9.
 
 ## Las decisiones importantes, explicadas
 
@@ -86,6 +83,8 @@ Portero (Traefik) — recibe todas las visitas en el puerto 80
 - **¿Cómo se cierra sola?** Cada subasta tiene un temporizador en la memoria. Cuando suena, un oyente marca la ganadora.
 - **Un problema que tuvimos:** el chequeo de salud usaba la palabra `localhost` y fallaba porque adentro del contenedor eso apuntaba a un lugar equivocado (IPv6). Con `127.0.0.1` se arregló.
 - **Otra:** al listar se evitó usar un comando peligroso (`KEYS`) y se usa una lista índice de IDs.
+- **Para la nube:** la página pedía `/api/...` como si todo viviera junto (en local el portero lo resolvía). En Railway la página y el servidor tienen direcciones distintas y daba 404. Se arregló en la caja misma: el nginx de la web reenvía `/api/*` a la dirección del servidor (`API_URL`), sin tocar el código de la página.
+- **De las pruebas:** el robot corría `npm test` pero eso solo agarra archivos `*.spec.ts`, y todas las pruebas reales son `*.e2e-spec.ts`, así que nunca las ejecutaba aunque existieran. Se arregló el robot para que corra unitarias + e2e contra una memoria real.
 
 ## Los robots que revisan todo (para curiosos)
 

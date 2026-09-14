@@ -425,10 +425,10 @@ estuvieran en el repo. Se corrigió `.github/workflows/ci.yml`:
 **Verificado en local:** `npm run test:e2e` → 6 archivos, 15 tests, todos
 en verde, contra el Redis real de `docker-compose`.
 
-## Fase 10 — Documentación final
+## Fase 10 — Documentación final ✅ (este README, rama docs/fase10-documentacion)
 
-- [ ] README con diagrama de arquitectura
-- [ ] README con el comando único para levantar todo (`docker compose up`)
-- [ ] README con las decisiones técnicas justificadas
-- [ ] Informe: resultados obtenidos, dificultades encontradas, mejoras
+- [x] README con diagrama de arquitectura
+- [x] README con el comando único para levantar todo (`docker compose up`)
+- [x] README con las decisiones técnicas justificadas
+- [x] Informe: resultados obtenidos, dificultades encontradas, mejoras
       futuras
