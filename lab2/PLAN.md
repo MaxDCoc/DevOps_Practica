@@ -63,7 +63,7 @@ mensajería funcionando (P2 + P1), después se suma la observabilidad (P3) y por
 
 | Parte | Responsable | Carpetas propias | Puede arrancar YA con |
 |---|---|---|---|
-| **P1 — API** | ________ | `services/api/`, `services/validator/` | Las reglas del validador como funciones puras con tests |
+| **P1 — API** | MaxDCoc | `services/api/`, `services/validator/` | Las reglas del validador como funciones puras con tests |
 | **P2 — Mensajería** | ________ | `services/worker/`, `common/.../messaging.py`, `state.py` | El ejecutor de etapas con tests; RabbitMQ y Redis con compose |
 | **P3 — Observabilidad** | ________ | `common/.../observability.py`, `logging.py`, `metrics.py`, `observability/` | El formateador de logs JSON y el test de `inject`/`extract` |
 | **P4 — Plataforma** (+ front 🟡) | ________ | `docker-compose.yml`, `scripts/`, `README.md`, `services/web/` | El compose de infraestructura (y los mocks del front, si hay dashboard) |
@@ -92,7 +92,7 @@ Escalones: **N0** contrato (Fase 0) → **N1** cada parte sola con dobles (Fase 
 
 ## Fase 0 — Contrato y esqueleto (N0) ✅ (verificado; falta el PR a `main` y el tag)
 
-**Lidera:** ________ · Es lo único secuencial: hasta que no esté en `main`, las
+**Lidera:** MaxDCoc · Es lo único secuencial: hasta que no esté en `main`, las
 ramas de las 4 partes no salen.
 
 - [x] 🔴 Rama `lab2/hito0-contrato` desde `main` (creada en local, todavía sin commits)
@@ -157,35 +157,47 @@ Cada uno trabaja en su rama (`lab2/p1-apis`, `lab2/p2-worker`,
 PR del Hito 0 no esté mergeado a `main`, las ramas parten de
 `origin/lab2/hito0-contrato`.
 
-### P1 — API (principal + validación) 🔲 · Responsable: ________
+### P1 — API (principal + validación) ✅ · Responsable: MaxDCoc (con Claude)
 
 **Validador** — `services/validator/`
-- [ ] 🔴 Reglas como funciones puras + tests: `project` con
+- [x] 🔴 Reglas como funciones puras + tests: `project` con
       `^[a-z0-9][a-z0-9-]{1,40}$`, `stages` no vacío y en orden
       build/test/deploy, `stage_seconds` entre 1 y 30, `fail_at` nulo o dentro
       de `stages`
-- [ ] 🔴 `POST /validate` → `{ valid, errors[] }` (siempre `200` para resultados
+- [x] 🔴 `POST /validate` → `{ valid, errors[] }` (siempre `200` para resultados
       de negocio) y `GET /health`
-- [ ] 🔴 Latencia artificial `VALIDATOR_LATENCY_MS` (default 150) para que su
+- [x] 🔴 Latencia artificial `VALIDATOR_LATENCY_MS` (default 150) para que su
       span se vea en Jaeger
-- [ ] 🔴 `Dockerfile` (usuario no root, contexto de build = `lab2/`)
+- [x] 🔴 `Dockerfile` (usuario no root, contexto de build = `lab2/`)
 
 **API principal** — `services/api/`
-- [ ] 🔴 `POST /pipelines`: validar → `JobStore.create` (queued) →
+- [x] 🔴 `POST /pipelines`: validar → `JobStore.create` (queued) →
       `Publisher.publish_job` → `202 { job_id, status, trace_id }`; `422` si el
       validador rechaza; `503` si falla el validador o la cola (y el job queda
       `failed`)
-- [ ] 🔴 `GET /pipelines/{id}` (404 si no existe) y `GET /health`
-- [ ] 🔴 Endpoints `def` (no `async`): `pika` es bloqueante
-- [ ] 🔴 Store y publisher salen de `factory` (interruptores `STATE_BACKEND` y
+- [x] 🔴 `GET /pipelines/{id}` (404 si no existe) y `GET /health`
+- [x] 🔴 Endpoints `def` (no `async`): `pika` es bloqueante
+- [x] 🔴 Store y publisher salen de `factory` (interruptores `STATE_BACKEND` y
       `PUBLISHER`)
-- [ ] 🔴 Swagger con ejemplos clickeables: uno exitoso y otro con
+- [x] 🔴 Swagger con ejemplos clickeables: uno exitoso y otro con
       `fail_at: "test"`
-- [ ] 🔴 Tests con `TestClient` y los dobles (202, 422, 503, 404)
-- [ ] 🔴 `Dockerfile`
-- [ ] 🟡 `GET /pipelines?limit=20` y `GET /stats` (los usa el dashboard)
+- [x] 🔴 Tests con `TestClient` y los dobles (202, 422, 503, 404)
+- [x] 🔴 `Dockerfile`
+- [x] 🟡 `GET /pipelines?limit=20` y `GET /stats` (los usa el dashboard)
 
-**Verificado:** _pendiente_
+**Verificado (22/10):** 42 tests del validador y 29 de la API en verde, y una prueba de
+mutaciones (25 roturas del código a propósito, las 25 detectadas). Las dos imágenes se
+construyen (~290 MB cada una) y, corriendo en una red de Docker con el estado en memoria y
+el publisher falso, responden como dice el contrato: `POST /pipelines` → `202` en ~210 ms,
+`422` con el mismo cuerpo que `docs/contract-examples/validation-rejected-422.json`,
+`GET /pipelines/{id}`, `GET /pipelines`, `GET /stats` y Swagger en `/docs`.
+**Pendiente:** probarla con la cola y Redis reales (depende de P2) y con el `trace_id`
+real en las respuestas (depende de P3).
+
+**Nota:** con el validador caído `POST /pipelines` responde `503` correctamente, pero tarda
+~4 s: probablemente la resolución DNS del nombre `validator` falla lento dentro de Docker
+antes de que actúe el timeout de 2 s. Tenerlo en cuenta en la demo y en los healthchecks de
+compose (`depends_on: condition: service_healthy`).
 
 ### P2 — Mensajería, worker y estado 🔲 · Responsable: ________
 
@@ -362,4 +374,5 @@ Entrega:
 |---|---|---|
 | 22/10 | — | Creados este `PLAN.md` y la guía del equipo (`docs/DeployFlow_guia_del_equipo.pdf`) |
 | 22/10 | MaxDCoc (con Claude) | Hito 0: `common/` con el contrato, las transiciones y los dobles (61 tests), 12 ejemplos JSON, `AGENTS.md`, dependencias fijadas y compose de infra levantado y verificado (4 servicios healthy). Todo en la rama `lab2/hito0-contrato` |
+| 22/10 | MaxDCoc (con Claude) | P1: validador (42 tests) y API principal (29 tests) con sus Dockerfiles, probados juntos en una red de Docker con estado en memoria y publisher falso. Rama `lab2/p1-apis`, parte de `lab2/hito0-contrato` |
 |  |  |  |
