@@ -187,7 +187,7 @@ PR del Hito 0 no esté mergeado a `main`, las ramas parten de
 
 **Verificado:** _pendiente_
 
-### P2 — Mensajería, worker y estado 🔶 · Responsable: MaxDCoc (con Claude)
+### P2 — Mensajería, worker y estado ✅ · Responsable: MaxDCoc (con Claude)
 
 - [x] 🔴 `runner.py` puro con tests: etapas con `sleep` inyectable, `fail_at`,
       `stage_seconds`, actualiza el estado en cada etapa
@@ -199,30 +199,45 @@ PR del Hito 0 no esté mergeado a `main`, las ramas parten de
       24 h y transiciones idempotentes
 - [x] 🔴 Worker: ack manual y `prefetch_count=1`; `Consumer.stop()` deja terminar el
       job en curso (probado contra RabbitMQ real)
-- [ ] 🔴 SIGTERM real: `docker stop` a mitad de un job y que termine antes de salir
-      (el cableado de la señal está en `worker.py`; falta probarlo en la prueba e2e)
+- [x] 🔴 SIGTERM real: `docker stop` a mitad de un job y que termine antes de salir
+      (probado en contenedor: tardó 7,0 s, salió con código 0 y el job quedó `succeeded`)
 - [x] 🔴 **Dormir con `connection.sleep()`**, no con `time.sleep()`: si no, un
       job largo bloquea los heartbeats y el mensaje se redelivera solo
 - [x] 🔴 Servidor HTTP del worker (`/health` y `/metrics` en `:8000`) en un hilo
-- [ ] 🔴 `tools/publish_sample.py` para probar sin la API _(escrito, falta probarlo)_
-- [ ] 🔴 `Dockerfile` del worker _(escrito, falta construirlo y probarlo)_
+- [x] 🔴 `tools/publish_sample.py` para probar sin la API _(probado desde el host contra un worker en contenedor)_
+- [x] 🔴 `Dockerfile` del worker _(construido y probado en contenedor)_
 - [x] 🟡 `Publisher.queue_depth()`, `heartbeat`/`live_workers`, `counts`,
       `list_recent` (los usa `/stats`)
 - [ ] 🟡 Cola de reintento (`pipeline.jobs.retry`, espera 5 s). No está hecha: hoy un
       error inesperado del handler va directo a la DLQ
 - [x] 🟡 Un mensaje que no es JSON válido va directo a la DLQ (probado)
-- [ ] 🔴 **Hecho cuando:** un mensaje de prueba deja el estado
+- [x] 🔴 **Hecho cuando:** un mensaje de prueba deja el estado
       `queued → running → succeeded` en Redis; `fail_at: test` termina `failed`
       con ack; matar el worker a mitad de un job hace que otro lo termine
-      _(cada pieza está probada por separado; falta verlo andar junto en contenedores)_
+      _(verificado de punta a punta en contenedores, ver abajo)_
 
 **Verificado (23/10):** 91 tests en `common`, corridos contra el Redis y el RabbitMQ **reales**
 del compose (incluyen la suite de contrato del `JobStore` aplicada a `RedisJobStore`, el
 redelivery de un mensaje sin confirmar, la DLQ, un job de 6 s con heartbeat de 2 s y el
 `prefetch`), y 18 en el worker. Prueba de mutaciones: se rompió el código a propósito en 28
-puntos y los tests detectaron los 28. **Pendiente:** la prueba de punta a punta en contenedores
-(API → cola → worker → Redis, con `docker stop`, `docker kill` y 3 workers), construir el
-Dockerfile del worker y probar `publish_sample.py`.
+puntos y los tests detectaron los 28. **Prueba de punta a punta en contenedores (23/10)**, con P1 (el código de `main`) y P2 juntos
+sobre la infraestructura de compose y con `TELEMETRY=off`:
+- Un pipeline completo: `POST /pipelines` → `202` en 236 ms; el estado pasó por `running` en
+  build, test y deploy hasta `succeeded`, con 1 intento y 3,0 s en total.
+- La API no se bloquea: con el worker ocupado en un trabajo de 6 s, dos `POST` seguidos
+  respondieron `202` en 178 y 170 ms.
+- Fallo controlado (`fail_at: test`): quedó `failed` con «falló la etapa test (simulado)»;
+  `build` OK, `test` fallida y `deploy` pendiente.
+- `publish_sample.py --count 2 --follow` desde el host contra el worker en contenedor: los 2
+  pipelines terminaron `succeeded` (código de salida 0).
+- `docker stop` a mitad de un job: el worker lo terminó antes de salir (7,0 s, código de salida 0,
+  job `succeeded` en 1 intento).
+- `docker kill` a mitad de un job: el job quedó `running`, otro worker lo recogió y lo terminó
+  (`succeeded`, 2 intentos); la métrica `worker_messages_redelivered_total` de ese worker marcó 1.
+- 3 workers: `/stats` mostró `workers: 3`; con 9 pipelines en cola, los 12 de 3 s terminaron en
+  12,9 s repartidos 4, 4 y 4. Los ~36 s con un solo worker son el cálculo (12 × 3 s), no una medición.
+- El campo `workers` de `/stats` tarda hasta 15 s en notar un worker muerto (es la vida del latido).
+- Quedó sin hacer la cola de reintento (🟡): hoy un error inesperado del handler va directo a la DLQ.
 
 **Nota para P3** (qué quedó hecho en P2 y qué no hay que repetir):
 - Los spans de la cola los crea P2 con la API de OpenTelemetry (`opentelemetry.trace`), sin
