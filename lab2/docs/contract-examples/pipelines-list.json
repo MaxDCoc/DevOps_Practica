@@ -1,0 +1,38 @@
+{
+  "items": [
+    {
+      "job_id": "7b1f6c0e-5d0a-4e07-9a52-2d7f2f0c9a11",
+      "project": "shop-frontend",
+      "branch": "main",
+      "status": "running",
+      "current_stage": "test",
+      "stages": [
+        {"name": "build", "status": "succeeded", "started_at": "2026-10-22T15:00:01Z", "duration_s": 3.0, "error": null},
+        {"name": "test", "status": "running", "started_at": "2026-10-22T15:00:04Z", "duration_s": null, "error": null},
+        {"name": "deploy", "status": "pending", "started_at": null, "duration_s": null, "error": null}
+      ],
+      "attempts": 1,
+      "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+      "submitted_at": "2026-10-22T15:00:00Z",
+      "finished_at": null,
+      "error": null
+    },
+    {
+      "job_id": "1c4e8f20-93ab-4d57-b6a1-0e5d7c3a9f42",
+      "project": "shop-frontend",
+      "branch": "main",
+      "status": "succeeded",
+      "current_stage": "deploy",
+      "stages": [
+        {"name": "build", "status": "succeeded", "started_at": "2026-10-22T14:58:01Z", "duration_s": 3.0, "error": null},
+        {"name": "test", "status": "succeeded", "started_at": "2026-10-22T14:58:04Z", "duration_s": 3.0, "error": null},
+        {"name": "deploy", "status": "succeeded", "started_at": "2026-10-22T14:58:07Z", "duration_s": 3.0, "error": null}
+      ],
+      "attempts": 1,
+      "trace_id": "a3ce929d0e0e47364bf92f3577b34da6",
+      "submitted_at": "2026-10-22T14:58:00Z",
+      "finished_at": "2026-10-22T14:58:10Z",
+      "error": null
+    }
+  ]
+}

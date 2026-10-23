@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deployflow-common"
+version = "0.1.0"
+description = "Librería compartida de DeployFlow: contrato, estado, mensajería y observabilidad"
+requires-python = ">=3.12"
+# Versiones fijadas en el Hito 0 para que nadie edite este archivo en paralelo.
+# Si una parte necesita otra dependencia, va al requirements.txt de su propio servicio.
+dependencies = [
+  "pydantic==2.14.1",
+  "redis==8.1.0",
+  "pika==1.4.4",
+  "prometheus-client==0.26.0",
+  "opentelemetry-api==1.45.1",
+  "opentelemetry-sdk==1.45.1",
+  "opentelemetry-exporter-otlp-proto-grpc==1.45.1",
+  "opentelemetry-instrumentation-fastapi==0.66b1",
+  "opentelemetry-instrumentation-httpx==0.66b1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1"]
+
+[tool.setuptools.packages.find]
+include = ["deployflow_common*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# store_contract.py (la suite de contrato del JobStore) vive en tests/ y la reusa P2 con Redis.
+pythonpath = ["tests"]

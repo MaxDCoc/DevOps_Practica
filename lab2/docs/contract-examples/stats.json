@@ -1,0 +1,5 @@
+{
+  "counts": {"queued": 2, "running": 1, "succeeded": 14, "failed": 3},
+  "queue_depth": 2,
+  "workers": 3
+}

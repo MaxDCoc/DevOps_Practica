@@ -1,0 +1,55 @@
+# Hito 0: solo la infraestructura. P4 suma api, validator, worker y web cuando existan sus Dockerfiles.
+# Funciona sin archivo .env: todos los valores tienen un default.
+name: deployflow
+
+services:
+  rabbitmq:
+    image: rabbitmq:4.3.7-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-deployflow}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-deployflow}
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # consola de administración
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"  # expuesto para redis-cli y para tests desde el host, como en lab1
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  jaeger:
+    image: jaegertracing/jaeger:2.22.0
+    ports:
+      - "16686:16686"  # UI
+      - "4317:4317"    # OTLP gRPC, para servicios que corren fuera de compose
+      - "4318:4318"    # OTLP HTTP
+    healthcheck:
+      # La imagen no trae healthcheck propio. 13133 es la extensión de salud de Jaeger v2.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:13133/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    healthcheck:
+      # 127.0.0.1 y no localhost, como aprendimos en lab1 (ver AGENTS.md)
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

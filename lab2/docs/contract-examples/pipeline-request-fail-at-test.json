@@ -1,0 +1,9 @@
+{
+  "project": "shop-frontend",
+  "branch": "main",
+  "config": {
+    "stages": ["build", "test", "deploy"],
+    "stage_seconds": 3,
+    "fail_at": "test"
+  }
+}

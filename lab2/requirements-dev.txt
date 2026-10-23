@@ -1,0 +1,11 @@
+# Entorno de desarrollo local: un solo venv para las cuatro partes.
+#
+#   python -m venv .venv
+#   .venv\Scripts\activate          (Windows)   |   source .venv/bin/activate   (Linux/macOS)
+#   pip install -r requirements-dev.txt
+#
+# Tests de la librería compartida:   cd common && pytest
+-e ./common[dev]
+-r services/api/requirements.txt
+-r services/validator/requirements.txt
+-r services/worker/requirements.txt

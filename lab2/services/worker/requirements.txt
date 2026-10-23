@@ -1,0 +1,2 @@
+# El worker solo usa deployflow-common (common/pyproject.toml): pika, redis, prometheus-client y
+# OpenTelemetry. Si necesita algo más, se agrega acá con la versión fijada.

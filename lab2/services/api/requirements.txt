@@ -1,0 +1,5 @@
+# Dependencias propias de la API. Las compartidas (pydantic, pika, redis, OpenTelemetry...) viven
+# en common/pyproject.toml. Versiones fijadas en el Hito 0: si hace falta otra, se agrega acá.
+fastapi==0.161.1
+uvicorn[standard]==0.54.0
+httpx==0.28.1

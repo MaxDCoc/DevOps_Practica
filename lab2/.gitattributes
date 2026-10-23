@@ -1,0 +1,5 @@
+# La raíz del repo no define finales de línea. Sin esto, en Windows los archivos
+# que ejecutan los contenedores Linux (scripts, Dockerfiles) llegan con CRLF y fallan.
+* text=auto eol=lf
+*.pdf binary
+*.png binary

@@ -1,0 +1,4 @@
+# Dependencias propias del validador. Las compartidas viven en common/pyproject.toml.
+# Versiones fijadas en el Hito 0: si hace falta otra, se agrega acá.
+fastapi==0.161.1
+uvicorn[standard]==0.54.0
