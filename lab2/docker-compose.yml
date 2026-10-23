@@ -1,6 +1,16 @@
-# Hito 0: solo la infraestructura. P4 suma api, validator, worker y web cuando existan sus Dockerfiles.
+# Plataforma completa salvo el dashboard (P4). Jaeger y Prometheus están levantados,
+# pero las trazas y el scrape de api/validator/worker los enciende P3.
+# TELEMETRY=off es literal a propósito: al mergear P3, cambiarlo a "on" en api, validator y worker.
 # Funciona sin archivo .env: todos los valores tienen un default.
 name: deployflow
+
+x-app-healthcheck: &app-healthcheck
+  # python:3.12-slim no trae wget ni curl. 127.0.0.1 y no localhost (lab1: IPv6 deja el contenedor unhealthy).
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+  interval: 5s
+  timeout: 3s
+  retries: 5
+  start_period: 10s
 
 services:
   rabbitmq:
@@ -53,3 +63,67 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  validator:
+    build:
+      context: .
+      dockerfile: services/validator/Dockerfile
+    environment:
+      TELEMETRY: "off"  # P3: cambiar a "on"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      LOG_LEVEL: INFO
+      VALIDATOR_LATENCY_MS: "150"
+    ports:
+      - "8001:8000"  # Swagger del validador
+    restart: unless-stopped
+    healthcheck: *app-healthcheck
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    environment:
+      STATE_BACKEND: redis
+      PUBLISHER: rabbit
+      TELEMETRY: "off"  # P3: cambiar a "on"
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-deployflow}:${RABBITMQ_PASS:-deployflow}@rabbitmq:5672/
+      REDIS_URL: redis://redis:6379/0
+      VALIDATOR_URL: http://validator:8000
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    depends_on:
+      validator:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck: *app-healthcheck
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/worker/Dockerfile
+    environment:
+      STATE_BACKEND: redis
+      TELEMETRY: "off"  # P3: cambiar a "on"
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-deployflow}:${RABBITMQ_PASS:-deployflow}@rabbitmq:5672/
+      REDIS_URL: redis://redis:6379/0
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      LOG_LEVEL: INFO
+      MAX_ATTEMPTS: "3"
+      WORKER_METRICS_PORT: "8000"
+    # Sin ports: si se publicara el 8000, --scale worker=3 chocaría en el host.
+    # SIGTERM deja terminar el job en curso, y connection.sleep() no se corta a mitad
+    # de una etapa. 3 etapas de 30 s (máximo del contrato) caben en 120 s.
+    stop_grace_period: 120s
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck: *app-healthcheck
