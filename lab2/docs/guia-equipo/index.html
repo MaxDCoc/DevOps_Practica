@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>DeployFlow — Guía del equipo</title>
+<style>
+:root{--ink:#1c2430;--muted:#5d6877;--line:#dde3ea;--soft:#f4f6f9;--blue:#2f6fed;--teal:#0f9d8c;--orange:#e8890c;--purple:#7a5af0;--red:#d6453d;--green:#2e9e5b}
+@page{size:A4;margin:14mm 14mm 17mm;@bottom-center{content:"DeployFlow · Guía del equipo · TP2 DevOps — página " counter(page) " de " counter(pages);font:8pt "Segoe UI",Arial,sans-serif;color:#8a94a3}}
+*{box-sizing:border-box}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{margin:0;font:10pt/1.5 "Segoe UI",Arial,sans-serif;color:var(--ink)}
+section{break-before:page}
+section:first-of-type{break-before:auto}
+h1{font-size:34pt;line-height:1.05;margin:8pt 0 6pt;letter-spacing:-.8px}
+h2{font-size:15pt;margin:0 0 8pt;padding-bottom:4pt;border-bottom:2px solid var(--blue)}
+h3{font-size:11.5pt;margin:10pt 0 3pt}
+p{margin:0 0 6pt}
+ul,ol{margin:0 0 6pt;padding-left:16pt}
+li{margin:0 0 2.5pt}
+.tag{display:inline-block;font-size:8.5pt;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);background:#e9f0ff;padding:2pt 9pt;border-radius:20pt}
+.sub{font-size:12.5pt;color:var(--muted);margin:0 0 12pt}
+.box{background:var(--soft);border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:6px;padding:8pt 11pt;margin:8pt 0;break-inside:avoid}
+.box.big{font-size:11.5pt;padding:11pt 14pt}
+.box.warn{border-left-color:var(--orange);background:#fff8ee}
+.box.ok{border-left-color:var(--green);background:#f0faf4}
+.box p:last-child{margin-bottom:0}
+.grid{display:grid;gap:9pt;margin:8pt 0}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.card{border:1px solid var(--line);border-top:4px solid var(--c,var(--blue));border-radius:6px;padding:8pt 10pt;break-inside:avoid;background:#fff}
+.card h3{margin-top:0}
+.q{font-style:italic;color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:6pt 0 9pt;font-size:9.2pt;break-inside:avoid}
+th,td{border:1px solid var(--line);padding:4pt 6pt;vertical-align:top;text-align:left}
+th{background:var(--soft);font-weight:600}
+code,pre{font-family:Consolas,"Cascadia Mono",monospace}
+code{background:#eef1f5;padding:0 3pt;border-radius:3px;font-size:.92em}
+pre{background:#101722;color:#e6edf6;padding:8pt 10pt;border-radius:6px;font-size:7.8pt;line-height:1.4;white-space:pre-wrap;break-inside:avoid;margin:5pt 0 8pt}
+.c-blue{--c:var(--blue)}.c-orange{--c:var(--orange)}.c-purple{--c:var(--purple)}.c-teal{--c:var(--teal)}.c-red{--c:var(--red)}
+.badge{display:inline-block;font-size:8pt;font-weight:700;color:#fff;background:var(--c,var(--blue));border-radius:20pt;padding:1pt 8pt;vertical-align:middle}
+.steps{counter-reset:s;list-style:none;padding:0;margin:6pt 0}
+.steps li{counter-increment:s;position:relative;padding:5pt 8pt 5pt 34pt;margin:0 0 5pt;border:1px solid var(--line);border-radius:6px;break-inside:avoid}
+.steps li::before{content:counter(s);position:absolute;left:8pt;top:5pt;width:19pt;height:19pt;border-radius:50%;background:var(--blue);color:#fff;font-weight:700;text-align:center;line-height:19pt;font-size:9.5pt}
+.ladder{display:grid;grid-template-columns:repeat(5,1fr);gap:5pt;margin:8pt 0}
+.rung{border:1px solid var(--line);border-top:4px solid var(--blue);border-radius:6px;padding:6pt 7pt;font-size:8.6pt;break-inside:avoid;background:#fff}
+.rung>b:first-child{display:block;font-size:10pt;color:var(--blue);margin-bottom:2pt}
+.fill{display:inline-block;min-width:130pt;border-bottom:1px solid #9aa5b4;height:11pt;vertical-align:bottom}
+.part{border:1px solid var(--line);border-left:6px solid var(--c);border-radius:6px;padding:8pt 12pt;margin:0 0 9pt;break-inside:avoid}
+.part h3{margin:0 0 2pt;font-size:12.5pt}
+.part .mission{font-size:10pt;margin-bottom:4pt}
+.part dl{margin:0;display:grid;grid-template-columns:62pt 1fr;gap:2.5pt 8pt;font-size:9pt;line-height:1.42}
+.part dt{font-weight:700;color:var(--muted)}
+.part dd{margin:0}
+.part dd ul{margin:0;padding-left:12pt}
+.part dd li{margin:0 0 1pt}
+.muted{color:var(--muted)}
+svg{display:block;width:100%;height:auto;margin:4pt 0 6pt}
+svg text{font-family:"Segoe UI",Arial,sans-serif}
+.cover-foot{margin-top:14pt;font-size:9pt;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- ============ 1. PORTADA ============ -->
+<section id="p1">
+  <span class="tag">TP2 · DevOps · UTN FRRe 2026 · Grupo 4</span>
+  <h1>DeployFlow</h1>
+  <p class="sub">Guía del equipo: qué vamos a construir, quién hace qué y cómo trabajar los cuatro a la vez sin esperarnos.</p>
+
+  <div class="box big">
+    <b>En una frase:</b> vamos a construir una mini plataforma que ejecuta «pipelines» (como los de CI/CD) <b>en segundo plano</b>, y que nos deja <b>ver en vivo por dónde pasa cada pedido, cuánto tarda y dónde se rompe</b>.
+  </div>
+
+  <h2 style="margin-top:14pt">Qué nos piden</h2>
+  <div class="grid g2">
+    <div class="card c-orange">
+      <h3>Tema 10 · Mensajería</h3>
+      <p class="q">¿Cómo desacoplar una tarea lenta del camino principal de una solicitud?</p>
+      <p><b>Hay que mostrar:</b> una API publica un trabajo, otro programa lo procesa con demora y la API responde sin esperar a que termine.</p>
+    </div>
+    <div class="card c-blue">
+      <h3>Tema 4 · Observabilidad</h3>
+      <p class="q">¿Cómo seguir una solicitud que atraviesa varios servicios?</p>
+      <p><b>Hay que mostrar:</b> un identificador que viaja por las dos APIs (y por la cola) y una pantalla con el recorrido completo, con tiempos y errores.</p>
+    </div>
+  </div>
+  <p>Con <b>un solo flujo</b> mostramos los dos temas: la cola evita que la API se quede esperando, y la observabilidad nos deja ver qué pasó en el medio.</p>
+
+  <h2 style="margin-top:14pt">Lo esencial en 30 segundos</h2>
+  <ul>
+    <li><b>Somos 4 y trabajamos a la vez.</b> Cada uno tiene su parte, sus carpetas y sus archivos. Nadie edita los de otro.</li>
+    <li><b>Nadie espera a nadie.</b> Primero nos ponemos de acuerdo, por escrito, en cómo se hablan las piezas (el «contrato», Anexo A). Después cada uno usa versiones de mentira de las piezas vecinas hasta que las reales estén listas.</li>
+    <li><b>Todo va en el mismo repo</b> (<code>DevOps_Practica/lab2</code>). Se integra de a poco, con pedidos de cambio (PR) chicos y seguidos, no con un gran empalme al final.</li>
+    <li><b>Todo se levanta con un solo comando:</b> <code>docker compose up --build -d</code>.</li>
+  </ul>
+
+  <h2 style="margin-top:14pt">Qué hay en esta guía</h2>
+  <table>
+    <tr><td>2 · La idea con una pizzería</td><td>6 · Cómo trabajamos sin esperarnos</td></tr>
+    <tr><td>3 · El recorrido de un pedido</td><td>7 · Orden recomendado y prioridades</td></tr>
+    <tr><td>4 · Tecnologías y demo en 5 pasos</td><td>8 · Reglas del repo</td></tr>
+    <tr><td>5 · Las 4 partes (backend, frontend, dependencias)</td><td>9 · Anexo A (contrato) · 10 · Glosario y pendientes</td></tr>
+  </table>
+  <p class="cover-foot">Versión 1 · 22/10/2026 · Los casilleros «Responsable» se completan cuando el grupo reparta las partes.</p>
+</section>
+
+<!-- ============ 2. PIZZERÍA ============ -->
+<section id="p2">
+  <h2>La idea, con una pizzería</h2>
+  <p>Imaginá una pizzería. El mozo anota tu pedido, pregunta al encargado si se puede hacer, te da un número y <b>vuelve a atender mesas</b> sin quedarse esperando el horno. La cocina prepara los pedidos de a uno. Una pizarra dice en qué etapa va cada uno. Eso es exactamente DeployFlow:</p>
+  <table>
+    <tr><th style="width:42%">En la pizzería</th><th>En DeployFlow</th></tr>
+    <tr><td>Vos, que hacés el pedido</td><td>Vos, desde el dashboard web o desde Swagger</td></tr>
+    <tr><td>El mozo, que anota y sigue atendiendo</td><td><b>API principal</b>: responde «202, pedido aceptado» al instante</td></tr>
+    <tr><td>El encargado, que chequea el pedido</td><td><b>API de validación</b>: ¿el pedido tiene sentido?</td></tr>
+    <tr><td>Los pedidos colgados en la cinta</td><td><b>Cola</b> en RabbitMQ</td></tr>
+    <tr><td>Los cocineros</td><td><b>Workers</b> (uno o varios): simulan build, test y deploy</td></tr>
+    <tr><td>La pizarra con «en el horno»</td><td><b>Redis</b>: el estado de cada pedido</td></tr>
+    <tr><td>El número de pedido que lo acompaña a todos lados</td><td>El <b>trace_id</b>: un identificador que viaja por todas las piezas</td></tr>
+    <tr><td>El cuaderno, el contador y el recorrido del pedido</td><td><b>Logs</b>, <b>métricas</b> y <b>trazas</b></td></tr>
+  </table>
+
+  <h2 style="margin-top:8pt">El mapa de piezas</h2>
+  <svg viewBox="0 0 720 525" style="max-height:112mm" role="img" aria-label="Diagrama de arquitectura de DeployFlow">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5d6877"/></marker>
+      <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2f6fed"/></marker>
+    </defs>
+    <!-- Dashboard -->
+    <rect x="250" y="8" width="220" height="52" rx="10" fill="#f4f6f9" stroke="#8a94a3" stroke-width="1.5"/>
+    <text x="360" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#1c2430">Dashboard web</text>
+    <text x="360" y="48" text-anchor="middle" font-size="11" fill="#5d6877">:3000 · o Swagger / curl</text>
+    <line x1="360" y1="60" x2="360" y2="108" stroke="#5d6877" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="372" y="82" font-size="11" fill="#1c2430"><tspan font-weight="700">1</tspan> pide ejecutar un pipeline</text>
+    <text x="372" y="98" font-size="11" fill="#1c2430"><tspan font-weight="700">4</tspan> recibe «202» enseguida</text>
+    <!-- API -->
+    <rect x="240" y="110" width="240" height="64" rx="10" fill="#eaf1ff" stroke="#2f6fed" stroke-width="2"/>
+    <text x="360" y="136" text-anchor="middle" font-size="14" font-weight="700" fill="#1c2430">API principal</text>
+    <text x="360" y="156" text-anchor="middle" font-size="11" fill="#5d6877">recibe los pedidos · :8000</text>
+    <!-- Validación -->
+    <rect x="20" y="110" width="170" height="64" rx="10" fill="#e6f7f4" stroke="#0f9d8c" stroke-width="2"/>
+    <text x="105" y="136" text-anchor="middle" font-size="14" font-weight="700" fill="#1c2430">API de validación</text>
+    <text x="105" y="156" text-anchor="middle" font-size="11" fill="#5d6877">¿el pedido está bien?</text>
+    <line x1="240" y1="132" x2="192" y2="132" stroke="#5d6877" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="216" y="124" text-anchor="middle" font-size="11" font-weight="700" fill="#1c2430">2</text>
+    <!-- RabbitMQ -->
+    <rect x="240" y="230" width="240" height="60" rx="10" fill="#fff3e0" stroke="#e8890c" stroke-width="2"/>
+    <text x="360" y="256" text-anchor="middle" font-size="14" font-weight="700" fill="#1c2430">RabbitMQ</text>
+    <text x="360" y="276" text-anchor="middle" font-size="11" fill="#5d6877">la cola de trabajos</text>
+    <line x1="360" y1="174" x2="360" y2="228" stroke="#5d6877" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="372" y="206" font-size="11" fill="#1c2430"><tspan font-weight="700">3</tspan> publica el trabajo</text>
+    <!-- Workers -->
+    <rect x="240" y="344" width="240" height="64" rx="10" fill="#f0ecff" stroke="#7a5af0" stroke-width="2"/>
+    <text x="360" y="370" text-anchor="middle" font-size="14" font-weight="700" fill="#1c2430">Workers (1, 2, 3…)</text>
+    <text x="360" y="390" text-anchor="middle" font-size="11" fill="#5d6877">build · test · deploy</text>
+    <line x1="360" y1="290" x2="360" y2="342" stroke="#5d6877" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="372" y="321" font-size="11" fill="#1c2430"><tspan font-weight="700">5</tspan> lo toma y lo procesa</text>
+    <!-- Redis -->
+    <rect x="540" y="230" width="160" height="60" rx="10" fill="#fdecea" stroke="#d6453d" stroke-width="2"/>
+    <text x="620" y="256" text-anchor="middle" font-size="14" font-weight="700" fill="#1c2430">Redis</text>
+    <text x="620" y="276" text-anchor="middle" font-size="10.5" fill="#5d6877">el estado de cada pedido</text>
+    <path d="M480,142 H620 V228" fill="none" stroke="#5d6877" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="500" y="134" font-size="10.5" fill="#5d6877">anota «en cola»</text>
+    <path d="M480,376 H620 V292" fill="none" stroke="#5d6877" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="500" y="368" font-size="10.5" fill="#5d6877">actualiza la etapa</text>
+    <!-- Observabilidad -->
+    <rect x="20" y="452" width="680" height="64" rx="10" fill="#f8fafc" stroke="#2f6fed" stroke-width="1.6" stroke-dasharray="6 4"/>
+    <text x="360" y="470" text-anchor="middle" font-size="11.5" font-weight="700" fill="#2f6fed"><tspan>6</tspan>  Observabilidad: todas las piezas mandan acá lo que les pasa</text>
+    <rect x="40" y="480" width="200" height="26" rx="6" fill="#fff" stroke="#c7d3e6"/>
+    <text x="140" y="498" text-anchor="middle" font-size="11" fill="#1c2430"><tspan font-weight="700">Jaeger</tspan> · trazas (el recorrido)</text>
+    <rect x="260" y="480" width="200" height="26" rx="6" fill="#fff" stroke="#c7d3e6"/>
+    <text x="360" y="498" text-anchor="middle" font-size="11" fill="#1c2430"><tspan font-weight="700">Prometheus</tspan> · métricas (números)</text>
+    <rect x="480" y="480" width="200" height="26" rx="6" fill="#fff" stroke="#c7d3e6"/>
+    <text x="580" y="498" text-anchor="middle" font-size="11" fill="#1c2430"><tspan font-weight="700">Logs en JSON</tspan> · qué pasó</text>
+    <line x1="105" y1="174" x2="105" y2="450" stroke="#2f6fed" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ab)"/>
+    <path d="M240,158 H205 V450" fill="none" stroke="#2f6fed" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ab)"/>
+    <line x1="360" y1="408" x2="360" y2="450" stroke="#2f6fed" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ab)"/>
+  </svg>
+  <p class="muted" style="font-size:8.5pt;margin:0">Línea llena: el camino del pedido. Punteada azul: datos de observabilidad de la API, la validación y los workers.</p>
+</section>
+
+<!-- ============ 3. RECORRIDO ============ -->
+<section id="p3">
+  <h2>El recorrido de un pedido, paso a paso</h2>
+  <ol class="steps">
+    <li><b>Pedís ejecutar un pipeline.</b> Desde el dashboard o Swagger indicás el proyecto, las etapas (build, test, deploy), cuántos segundos dura cada una y, si querés, que <b>falle en test</b>.</li>
+    <li><b>La API principal consulta a la API de validación.</b> Ella revisa que el nombre del proyecto y las etapas tengan sentido. Si algo está mal, responde <code>422</code> con los errores.</li>
+    <li><b>Si está bien,</b> la API anota el pedido como «en cola» en Redis y <b>publica un mensaje en RabbitMQ</b>. Al mensaje le pega el <code>trace_id</code>, para no perder el hilo.</li>
+    <li><b>Responde enseguida «202 Accepted»</b> con un <code>job_id</code> y el <code>trace_id</code>. No espera a que termine nada: queda libre para atender más pedidos.</li>
+    <li><b>Un worker toma el mensaje</b> y simula build → test → deploy con demoras de unos segundos. Va anotando en Redis en qué etapa está. Si pediste que falle en test, el pipeline termina en <code>failed</code>.</li>
+    <li><b>Mientras tanto, la observabilidad lo registra todo:</b> logs con el <code>trace_id</code>, números en Prometheus y la traza completa en Jaeger. El dashboard lee el estado y muestra el avance en vivo.</li>
+  </ol>
+  <div class="box warn">
+    <b>Ojo con el «202».</b> Significa «recibí tu pedido», <b>no</b> «terminó bien». La API puede responder 202 y, varios segundos después, el worker registrar un error. Por eso hace falta observabilidad: para enterarnos de lo que pasó <i>después</i> de que la API ya contestó.
+  </div>
+
+  <h2 style="margin-top:12pt">Las tres «patas» de la observabilidad, en simple</h2>
+  <table>
+    <tr><th style="width:14%">Qué es</th><th style="width:30%">Qué pregunta responde</th><th>Ejemplo en nuestro proyecto</th></tr>
+    <tr><td><b>Logs</b></td><td>¿Qué pasó?</td><td>«El test del pipeline 42 falló» (una línea de texto, con el <code>trace_id</code>)</td></tr>
+    <tr><td><b>Métricas</b></td><td>¿Cuánto y con qué frecuencia pasa?</td><td>«8 pipelines fallidos sobre 100»; cuántos mensajes hay en la cola; cuánto tarda un job</td></tr>
+    <tr><td><b>Trazas</b></td><td>¿Dónde y por qué camino pasó?</td><td>Una línea de tiempo en Jaeger: API → validación → cola → worker → etapa «test» en rojo</td></tr>
+  </table>
+  <p>La clave es el <code>trace_id</code>: es el mismo número en la respuesta de la API, en los logs del worker y en Jaeger. Con ese número seguimos un pedido de punta a punta.</p>
+</section>
+
+<!-- ============ 4. TECNOLOGÍAS + DEMO ============ -->
+<section id="p4">
+  <h2>Tecnologías, en palabras simples</h2>
+  <table>
+    <tr><th style="width:24%">Tecnología</th><th>Para qué la usamos</th><th style="width:20%">Dónde se ve</th></tr>
+    <tr><td><b>Python + FastAPI</b></td><td>Escribir las dos APIs (la principal y la de validación). Genera Swagger solo.</td><td>:8000 y :8001</td></tr>
+    <tr><td><b>RabbitMQ</b></td><td>La cola: guarda los trabajos hasta que un worker los tome.</td><td>:15672</td></tr>
+    <tr><td><b>Python + Pika</b></td><td>El worker. Pika es la librería para hablar con RabbitMQ.</td><td>logs del contenedor</td></tr>
+    <tr><td><b>Redis</b></td><td>La pizarra rápida con el estado de cada pedido.</td><td><code>redis-cli</code></td></tr>
+    <tr><td><b>React + Vite</b></td><td>El dashboard: formulario, lista en vivo y estadísticas.</td><td>:3000</td></tr>
+    <tr><td><b>OpenTelemetry</b></td><td>Las «cámaras»: hace que cada servicio genere trazas.</td><td>—</td></tr>
+    <tr><td><b>Jaeger</b></td><td>La pantalla para ver el recorrido de un pedido.</td><td>:16686</td></tr>
+    <tr><td><b>Prometheus</b></td><td>Guarda números a lo largo del tiempo (cuántos, cuánto tardan).</td><td>:9090</td></tr>
+    <tr><td><b>Docker Compose</b></td><td>Levanta todas las piezas juntas con un solo comando.</td><td>terminal</td></tr>
+  </table>
+
+  <h2 style="margin-top:10pt">La demo en 5 pasos (lo que vamos a mostrar)</h2>
+  <ol class="steps">
+    <li><b>Ejecutar un pipeline.</b> Un <code>POST /pipelines</code>, la validación lo aprueba y la API responde <code>202</code> con un <code>job_id</code>.</li>
+    <li><b>Mostrar que es asíncrono.</b> El worker tarda varios segundos a propósito. Mientras tanto la API ya respondió y acepta más pedidos; el estado se consulta con <code>GET /pipelines/{id}</code>.</li>
+    <li><b>Ver la traza distribuida.</b> En Jaeger, el mismo <code>trace_id</code> atraviesa la API, la validación y el procesamiento del mensaje.</li>
+    <li><b>Provocar un fallo controlado.</b> Un pipeline configurado para fallar en test: se ve el error en los logs, el span en rojo en Jaeger y el estado <code>failed</code>.</li>
+    <li><b>Escalar.</b> Mandamos muchos trabajos, vemos crecer la cola y pasamos de 1 a 3 workers. Comparamos la velocidad y las métricas antes y después.</li>
+  </ol>
+  <div class="box ok">
+    <b>Qué queda fuera:</b> login de usuarios, despliegues reales y un frontend complicado. Si el dashboard no llega a tiempo, Swagger alcanza para la demo.
+  </div>
+</section>
+
+<!-- ============ 5. LAS 4 PARTES ============ -->
+<section id="p5">
+  <h2>Las 4 partes de un vistazo</h2>
+  <table>
+    <tr><th style="width:15%">Parte</th><th style="width:27%">Backend</th><th style="width:21%">Frontend</th><th>Depende de</th></tr>
+    <tr><td><span class="badge c-blue">P1</span> <b>API</b></td><td>Validador y API principal: crear, ver y listar pipelines, estadísticas</td><td>—<br><small>(deja Swagger listo para el dashboard)</small></td><td>P2 (cola y estado reales) y P3 (trazas), recién al integrar</td></tr>
+    <tr><td><span class="badge c-orange">P2</span> <b>Mensajería</b></td><td>Cola, worker, etapas simuladas, estado en Redis, reintentos</td><td>—</td><td>Nada para empezar. P3 le da las trazas al integrar</td></tr>
+    <tr><td><span class="badge c-purple">P3</span> <b>Observabilidad</b></td><td>Trazas, logs JSON, métricas, Jaeger, Prometheus</td><td>Define el link a la traza y las consultas útiles</td><td>Nada. Entrega funciones que P1 y P2 enchufan</td></tr>
+    <tr><td><span class="badge c-teal">P4</span> <b>Front + plataforma</b></td><td>Compose de todo, nginx, scripts de demo, README</td><td><b>Dashboard React</b></td><td>La API real de P1 y los Dockerfiles de P1/P2, recién al integrar</td></tr>
+  </table>
+  <p class="muted" style="font-size:9pt">«Recién al integrar» significa que nadie se frena: hasta ese momento cada uno usa versiones de mentira de sus vecinos (ver la sección 6).</p>
+
+  <div class="part c-blue" style="--c:var(--blue)">
+    <h3><span class="badge" style="--c:var(--blue)">P1</span> API (principal + validación)</h3>
+    <p class="mission"><i>Ser la puerta de entrada: recibir el pedido, chequearlo y dejarlo en la cola sin hacer esperar a nadie.</i> Tamaño: mediano · Responsable: <span class="fill"></span></p>
+    <dl>
+      <dt>Backend</dt><dd><ul><li><b>Validador:</b> servicio chico que revisa el nombre del proyecto, las etapas y los segundos.</li><li><b>API principal:</b> crear pipeline, ver uno, listar, estadísticas; responde 202 / 422 / 503.</li><li><b>Swagger</b> con ejemplos listos para probar (uno OK y uno que falla en test).</li></ul></dd>
+      <dt>Frontend</dt><dd>No tiene. Deja la API documentada para que P4 haga la pantalla.</dd>
+      <dt>Depende de</dt><dd>P2 (publicar en la cola y guardar estado «de verdad») y P3 (trazas), solo al integrar. Hasta entonces usa un guardado en memoria y un «publicador de mentira».</dd>
+      <dt>Alimenta a</dt><dd>P4 (el dashboard usa tu API). Al final hace los tests de punta a punta y el CI.</dd>
+      <dt>Empezá hoy</dt><dd>1) Las reglas del validador como funciones puras con tests. 2) <code>POST</code>/<code>GET</code> de la API con el guardado falso. 3) Los ejemplos de Swagger.</dd>
+      <dt>Listo cuando</dt><dd>Responde 202 en menos de 0,3 s y el mensaje aparece en la cola.</dd>
+    </dl>
+  </div>
+
+  <div class="part c-orange" style="--c:var(--orange)">
+    <h3><span class="badge" style="--c:var(--orange)">P2</span> Mensajería, worker y estado</h3>
+    <p class="mission"><i>Ser la cocina: tomar los pedidos de la cola, hacerlos con demora y anotar en qué etapa van.</i> Tamaño: grande · Responsable: <span class="fill"></span></p>
+    <dl>
+      <dt>Backend</dt><dd><ul><li><b>Cola:</b> la principal y la de mensajes fallidos; publicador con confirmación.</li><li><b>Worker:</b> simula build → test → deploy, con ack manual y de a un trabajo por vez.</li><li><b>Estado en Redis:</b> etapa actual, tiempos, errores; latido de cada worker.</li><li>Extra: reintentos con espera y cola de mensajes muertos (DLQ).</li></ul></dd>
+      <dt>Frontend</dt><dd>No tiene. Lo que guardás en Redis es lo que el dashboard muestra.</dd>
+      <dt>Depende de</dt><dd>Nada para empezar. P3 le entrega las trazas y métricas al integrar.</dd>
+      <dt>Alimenta a</dt><dd>P1 (publicar y leer el estado) y P4 (cola y workers vivos para las estadísticas).</dd>
+      <dt>Empezá hoy</dt><dd>1) El ejecutor de etapas con tests (sin RabbitMQ). 2) RabbitMQ y Redis con compose y un script que mande mensajes de prueba. 3) El consumidor con ack manual.</dd>
+      <dt>Listo cuando</dt><dd>Un pedido de prueba termina en Redis; el que falla en test queda <code>failed</code>; si matás un worker a mitad de un trabajo otro lo termina; con 3 workers se reparten la cola.</dd>
+    </dl>
+  </div>
+</section>
+
+<section id="p5b">
+  <h2>Las 4 partes (continuación)</h2>
+  <div class="part c-purple" style="--c:var(--purple)">
+    <h3><span class="badge" style="--c:var(--purple)">P3</span> Observabilidad</h3>
+    <p class="mission"><i>Ser las cámaras y los contadores: que todo lo que pase quede registrado y se pueda seguir con un solo número.</i> Tamaño: grande · Responsable: <span class="fill"></span></p>
+    <dl>
+      <dt>Backend</dt><dd><ul><li><b>Librería común:</b> trazas con OpenTelemetry, logs en JSON con <code>trace_id</code> y métricas.</li><li><b>Propagación por la cola:</b> el <code>trace_id</code> viaja dentro del mensaje (a mano, para poder explicarlo).</li><li><b>Prometheus</b> (que encuentre 1 o N workers), <b>Jaeger</b> y una hoja de consultas para la demo.</li></ul></dd>
+      <dt>Frontend</dt><dd>Define el enlace a la traza en Jaeger y las consultas útiles; P4 los muestra.</dd>
+      <dt>Depende de</dt><dd>Nada. Entrega funciones con los mismos nombres que los «stubs» del esqueleto, y P1/P2 las usan sin cambiar su código.</dd>
+      <dt>Alimenta a</dt><dd>P1 y P2 (las funciones), P4 (las configuraciones del compose).</dd>
+      <dt>Empezá hoy</dt><dd>1) El formateador de logs JSON con test. 2) Un test de que el <code>trace_id</code> sobrevive a «meter y sacar» del mensaje. 3) Levantar Jaeger y Prometheus y validar la configuración.</dd>
+      <dt>Listo cuando</dt><dd>Una sola traza en Jaeger muestra API → validación → cola → worker → etapas, con el mismo número que sale en la respuesta y en los logs.</dd>
+    </dl>
+  </div>
+
+  <div class="part c-teal" style="--c:var(--teal)">
+    <h3><span class="badge" style="--c:var(--teal)">P4</span> Frontend + plataforma</h3>
+    <p class="mission"><i>Ser la vidriera y el pegamento: la pantalla para ver todo en vivo y el compose que lo levanta con un comando.</i> Tamaño: grande · Responsable: <span class="fill"></span></p>
+    <dl>
+      <dt>Frontend</dt><dd><ul><li><b>Dashboard React</b> (de una sola pantalla): formulario con atajos <i>Ejecutar OK</i>, <i>Forzar fallo en test</i> y <i>Lanzar 10</i>.</li><li><b>Lista en vivo</b> (se actualiza cada 2 s) con estado, etapas y duración, y el enlace <i>Ver traza en Jaeger</i>.</li><li><b>Panel de estadísticas:</b> pedidos por estado, cola, workers vivos; enlaces a RabbitMQ, Jaeger y Prometheus.</li></ul></dd>
+      <dt>Backend</dt><dd><ul><li><b>docker-compose</b> con los 8 servicios, chequeos de salud y orden de arranque.</li><li><b>nginx</b> que reenvía <code>/api</code> a la API.</li><li><b>Scripts de demo</b> (ok, fail, burst, scale) y README con el paso a paso.</li></ul></dd>
+      <dt>Depende de</dt><dd>La API real de P1 y los Dockerfiles de P1/P2, solo al integrar. Hasta entonces trabaja con un servidor de mentira que devuelve los ejemplos del contrato.</dd>
+      <dt>Alimenta a</dt><dd>A todos: es quien integra el conjunto y arma el README y la guía del coloquio.</dd>
+      <dt>Empezá hoy</dt><dd>1) Proyecto Vite + React y el servidor de mocks. 2) Formulario y lista contra los mocks. 3) Compose solo con la infraestructura.</dd>
+      <dt>Listo cuando</dt><dd>Un clon limpio + <code>docker compose up --build -d</code> deja todo andando y el dashboard funciona sin pasos manuales.</dd>
+    </dl>
+  </div>
+  <div class="box">
+    <b>Repartir el esfuerzo:</b> P1 es la más liviana. Cuando termina su núcleo, toma los <b>tests de punta a punta</b> y el <b>CI</b>, que son de P4, para que nadie se ahogue al final.
+  </div>
+</section>
+
+<!-- ============ 6. SIN ESPERARNOS ============ -->
+<section id="p6">
+  <h2>Cómo trabajamos sin esperarnos</h2>
+  <p>El truco son <b>tres ideas</b> que se combinan:</p>
+  <div class="grid g3">
+    <div class="card c-blue"><h3>1 · Contrato primero</h3><p>Escribimos <b>de antemano</b> cómo se hablan las piezas: qué URLs hay, qué JSON viaja, cómo se llama la cola, qué nombres tienen las métricas. Está en el Anexo A y se congela en el Paso 0.</p></div>
+    <div class="card c-orange"><h3>2 · Dobles de prueba</h3><p>Cada uno trabaja contra una <b>versión de mentira</b> de sus vecinos (guardado en memoria, publicador falso, servidor de mocks) que cumple el mismo contrato.</p></div>
+    <div class="card c-purple"><h3>3 · Interruptores</h3><p>Con variables de entorno pasamos de lo falso a lo real <b>sin tocar código</b>: <code>STATE_BACKEND</code>, <code>PUBLISHER</code> y <code>TELEMETRY</code>.</p></div>
+  </div>
+
+  <h3>Qué usa cada uno mientras los demás no terminaron</h3>
+  <table>
+    <tr><th style="width:17%">Parte</th><th style="width:44%">Usa de mentira / ya disponible</th><th>Trabaja sola con</th></tr>
+    <tr><td><b>P1</b> API</td><td>Guardado en memoria, publicador falso y telemetría apagada (<code>memory</code> / <code>fake</code> / <code>off</code>)</td><td>El servidor local, <code>pytest</code> y Swagger</td></tr>
+    <tr><td><b>P2</b> Worker</td><td>RabbitMQ y Redis reales del compose de infraestructura; mensajes que manda un script, sin la API</td><td><code>pytest</code> y el worker en una terminal</td></tr>
+    <tr><td><b>P3</b> Observabilidad</td><td>Una app de juguete y un «registro en memoria» de trazas; Jaeger y Prometheus reales</td><td><code>pytest</code> y la validación de la config</td></tr>
+    <tr><td><b>P4</b> Front + plataforma</td><td>Un servidor de mocks que responde con los ejemplos del contrato y simula el avance de las etapas</td><td><code>npm run dev:mock</code> y <code>docker compose config</code></td></tr>
+  </table>
+
+  <h3>La escalera de integración: cada escalón se «enciende» cambiando una variable</h3>
+  <div class="ladder">
+    <div class="rung"><b>N0 · Contrato</b>Esqueleto del repo y contrato congelado. Lo hace <b>una</b> persona.</div>
+    <div class="rung"><b>N1 · Solos</b>Cada parte funciona sola con sus dobles. Los 4, en paralelo.</div>
+    <div class="rung"><b>N2 · Núcleo</b>API ↔ cola ↔ worker reales (<code>redis</code> + <code>rabbit</code>). Entra primero P2, después P1.</div>
+    <div class="rung"><b>N3 · Observa</b>P3 reemplaza los stubs; <code>TELEMETRY=on</code>. P1 y P2 no cambian código.</div>
+    <div class="rung"><b>N4 · Todo</b>El dashboard apunta a <code>/api</code> real y el compose levanta los 8 servicios. Lidera P4.</div>
+  </div>
+  <div class="box ok">
+    <b>Cómo se acopla todo en un mismo repo:</b> cada uno sube <b>PR chicos a <code>main</code> en cuanto algo funciona</b> (como mínimo una vez por día de trabajo) y <code>main</code> siempre tiene los tests en verde. Antes de ponerte a trabajar, hacé <code>git pull --rebase origin main</code>. Así los resultados de los cuatro se van sumando de a poco y nadie espera un «gran empalme».
+  </div>
+</section>
+
+<!-- ============ 7. ORDEN ============ -->
+<section id="p7">
+  <h2>Orden recomendado</h2>
+  <ol class="steps" style="counter-reset:s -1">
+    <li><b>Paso 0 · Contrato y esqueleto (N0).</b> Es lo <b>único secuencial</b> y dura poco. Una persona crea <code>lab2/</code> con la estructura, las librerías de prueba y los ejemplos del contrato. Mientras tanto, los otros tres leen esta guía, instalan lo que necesitan y revisan el Anexo A.</li>
+    <li><b>Paso 1 · Arrancan los 4 a la vez (N1).</b> No hay orden entre ellos: cada uno trabaja en sus carpetas con sus dobles.</li>
+    <li><b>Paso 2 · Núcleo asíncrono (N2).</b> Se integra primero <b>P2</b> (cola, worker y estado reales) y después <b>P1</b> (API real). Es el primer «hola mundo» de punta a punta.</li>
+    <li><b>Paso 3 · Observabilidad (N3).</b> <b>P3</b> enciende trazas, métricas y logs. P1 y P2 solo cambian una variable.</li>
+    <li><b>Paso 4 · Todo junto (N4).</b> <b>P4</b> conecta el dashboard real y cierra el compose completo; <b>P1</b> toma los tests de punta a punta y el CI.</li>
+    <li><b>Paso 5 · Ensayo.</b> Ensayar la demo dos veces, congelar el README y la guía del coloquio (el coloquio es <b>individual</b>: cada uno tiene que poder explicar todo el proyecto).</li>
+  </ol>
+
+  <h3>Si falta tiempo, esta es la prioridad</h3>
+  <div class="grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="card c-orange"><h3 style="margin-bottom:2pt">1.º · P2</h3><small class="muted">Mensajería: es uno de los dos temas.</small></div>
+    <div class="card c-purple"><h3 style="margin-bottom:2pt">2.º · P3</h3><small class="muted">Observabilidad: el otro tema.</small></div>
+    <div class="card c-blue"><h3 style="margin-bottom:2pt">3.º · P1</h3><small class="muted">Sin API no hay flujo.</small></div>
+    <div class="card c-teal"><h3 style="margin-bottom:2pt">4.º · P4</h3><small class="muted">El dashboard es lo primero que se recorta: Swagger lo reemplaza.</small></div>
+  </div>
+
+  <h3>Quién necesita a quién, y cuándo</h3>
+  <table>
+    <tr><th style="width:16%">Parte</th><th style="width:34%">Necesita…</th><th style="width:12%">Cuándo</th><th>Mientras tanto</th></tr>
+    <tr><td><b>P1</b></td><td>El publicador y el estado reales de P2</td><td>N2</td><td>Guardado en memoria y publicador falso</td></tr>
+    <tr><td><b>P1, P2</b></td><td>Las funciones de trazas, logs y métricas de P3</td><td>N3</td><td>Funciones vacías («stubs») que no hacen nada</td></tr>
+    <tr><td><b>P4</b></td><td>La API real de P1</td><td>N4</td><td>Servidor de mocks con los ejemplos del contrato</td></tr>
+    <tr><td><b>P4</b></td><td>Los Dockerfiles de P1 y P2, y la config de Prometheus de P3</td><td>N4</td><td>Compose probado solo con la infraestructura</td></tr>
+    <tr><td><b>P2, P3</b></td><td>Nada de nadie para empezar</td><td>—</td><td>—</td></tr>
+  </table>
+  <p>Fijate que <b>nadie depende de un resultado terminado para arrancar</b>: las dependencias aparecen recién en los escalones N2 a N4, y para entonces cada parte ya funciona sola.</p>
+</section>
+
+<!-- ============ 8. REGLAS DEL REPO ============ -->
+<section id="p8">
+  <h2>Reglas del repo (para no pisarnos)</h2>
+  <h3>Cada parte tiene sus carpetas</h3>
+<table>
+    <tr><th style="width:62%">Carpeta o archivo (dentro de <code>lab2/</code>)</th><th>De quién es</th></tr>
+    <tr><td><code>docs/</code></td><td>Paso 0: contrato, ejemplos de respuestas, esta guía</td></tr>
+    <tr><td><code>common/contract.py</code></td><td>Paso 0 (se congela)</td></tr>
+    <tr><td><code>common/messaging.py</code>, <code>common/state.py</code></td><td><span class="badge c-orange">P2</span></td></tr>
+    <tr><td><code>common/observability.py</code>, <code>logging.py</code>, <code>metrics.py</code></td><td><span class="badge c-purple">P3</span></td></tr>
+    <tr><td><code>services/api/</code> y <code>services/validator/</code></td><td><span class="badge c-blue">P1</span></td></tr>
+    <tr><td><code>services/worker/</code></td><td><span class="badge c-orange">P2</span></td></tr>
+    <tr><td><code>services/web/</code></td><td><span class="badge c-teal">P4</span></td></tr>
+    <tr><td><code>observability/</code> (Prometheus, Jaeger, consultas)</td><td><span class="badge c-purple">P3</span></td></tr>
+    <tr><td><code>docker-compose.yml</code>, <code>scripts/</code>, <code>README.md</code></td><td><span class="badge c-teal">P4</span></td></tr>
+    <tr><td><code>tests/e2e/</code> y <code>.github/workflows/lab2-ci.yml</code></td><td><span class="badge c-blue">P1</span> (al final)</td></tr>
+  </table>
+  <ul>
+    <li><b>No se edita un archivo de otra parte.</b> Si necesitás algo, lo pedís o cambiás el contrato (ver abajo).</li>
+    <li><b>Cambiar el contrato</b> (un endpoint, el mensaje, un nombre de métrica) se avisa a todos y va en un PR chico que se mergea primero; los demás hacen <code>rebase</code>.</li>
+    <li><b>Dependencias nuevas:</b> las del Paso 0 ya están fijadas. Si necesitás otra, agregala al <code>requirements.txt</code> de <b>tu</b> servicio.</li>
+    <li><b>docker-compose.yml</b> lo toca solo P4. Si necesitás un puerto o una variable, la sumás al contrato y se lo avisás.</li>
+  </ul>
+
+  <h3>Git, en cinco reglas</h3>
+  <ol>
+    <li>Una rama por parte: <code>lab2/p1-apis</code>, <code>lab2/p2-worker</code>, <code>lab2/p3-observabilidad</code>, <code>lab2/p4-front-plataforma</code>. Todas salen del Paso 0.</li>
+    <li>PR a <code>main</code> chicos y seguidos. <code>main</code> siempre con los tests en verde.</li>
+    <li><code>git pull --rebase origin main</code> antes de empezar a trabajar cada día.</li>
+    <li>Mensajes de commit tipo <code>feat(lab2): validador con las reglas de etapas</code>.</li>
+    <li><b>No tocar <code>lab1</code></b> y agregar solo rutas de <code>lab2/</code> (<code>git add lab2</code>). No subir contraseñas ni archivos <code>.env</code> (el <code>.env.example</code> sí).</li>
+  </ol>
+
+  <h3>Qué instalar antes de empezar</h3>
+  <table>
+    <tr><th style="width:30%">Herramienta</th><th>Quién la necesita</th></tr>
+    <tr><td>Docker Desktop (con Compose)</td><td>Los 4</td></tr>
+    <tr><td>Git</td><td>Los 4</td></tr>
+    <tr><td>Python 3.12 o superior</td><td>P1, P2, P3 (y P4 para los scripts de demo)</td></tr>
+    <tr><td>Node 20 o superior</td><td>P4</td></tr>
+  </table>
+</section>
+
+<!-- ============ 9. ANEXO A ============ -->
+<section id="p9">
+  <h2>Anexo A · El contrato resumido</h2>
+  <p>Con esto alcanza para empezar <b>aunque todavía no exista el esqueleto del repo</b>. El Paso 0 lo deja escrito en código y con ejemplos de cada respuesta.</p>
+
+  <h3>Endpoints de la API principal (puerto 8000)</h3>
+<pre>POST /pipelines           → 202 { job_id, status:"queued", trace_id }   (+ cabecera Location)
+                            422 { detail:{ errors:[…] } }               (el validador lo rechazó)
+                            503                                         (falla el validador o la cola)
+GET  /pipelines/{id}      → { job_id, project, status, current_stage, stages:[…], attempts,
+                              trace_id, submitted_at, finished_at, error }      · 404 si no existe
+GET  /pipelines?limit=20  → { items:[ …lo mismo que arriba… ] }   (el más nuevo primero)
+GET  /stats               → { counts:{queued,running,succeeded,failed}, queue_depth, workers }
+GET  /health   GET /metrics
+POST /validate  (en el validador)  → { valid, errors:[] }</pre>
+
+  <h3>Cuerpo del pedido y estados</h3>
+<pre>{ "project": "shop-frontend", "branch": "main",
+  "config": { "stages": ["build","test","deploy"], "stage_seconds": 3, "fail_at": null } }
+
+status:  queued | running | succeeded | failed
+stage:   { name, status, started_at, duration_s, error }
+Reglas:  project = minúsculas, números y guiones (2 a 41 caracteres) · stages ⊂ build, test, deploy en ese orden
+         stage_seconds entre 1 y 30 · fail_at = null o una de las etapas</pre>
+
+  <h3>Cola (RabbitMQ) y estado (Redis)</h3>
+<pre>Exchange  pipelines  (routing key pipeline.run)  →  cola  pipeline.jobs   (duradera, ack manual, de a 1 por worker)
+Cola de mensajes fallidos:  pipeline.jobs.dead     ·  reintentos (extra): pipeline.jobs.retry (espera 5 s)
+Mensaje:  { job_id, project, branch, config, submitted_at }   cabeceras: traceparent, x-attempt
+
+Redis:  job:{id} = estado en JSON (se borra a las 24 h) · jobs:recent = índice por fecha
+        worker:{host} = latido de cada worker (se renueva cada 5 s y vence a los 15 s)</pre>
+
+  <h3>Nombres que tienen que coincidir en todas las partes</h3>
+<pre>Métricas:  http_requests_total · http_request_duration_seconds · pipelines_submitted_total
+           pipeline_jobs_total{status} · pipeline_job_duration_seconds · pipeline_stage_duration_seconds{stage}
+           pipeline_stage_failures_total{stage} · worker_jobs_in_progress · worker_messages_redelivered_total
+Servicios de trazas:  api · validator · worker       Enlace a la traza:  {JAEGER_URL}/trace/{trace_id}
+Log (una línea JSON):  ts, level, service, msg, trace_id, span_id, job_id?, stage?, error?
+Interruptores:  STATE_BACKEND=memory|redis · PUBLISHER=fake|rabbit · TELEMETRY=on|off
+Puertos:  web 3000 · api 8000 · validator 8001 · RabbitMQ 5672 y 15672 · Redis 6379
+          Jaeger 16686 · Prometheus 9090 · el worker no publica puertos (se escala con --scale)</pre>
+</section>
+
+<!-- ============ 10. GLOSARIO ============ -->
+<section id="p10">
+  <h2>Glosario</h2>
+  <table>
+    <tr><th style="width:22%">Palabra</th><th>Qué quiere decir, en simple</th></tr>
+    <tr><td><b>Pipeline</b></td><td>Una serie de etapas que se ejecutan en orden (build, test, deploy). Acá es simulado.</td></tr>
+    <tr><td><b>Cola</b></td><td>Una fila de trabajos pendientes. Quien manda no espera; quien procesa toma el siguiente cuando puede.</td></tr>
+    <tr><td><b>Worker</b></td><td>El programa que toma trabajos de la cola y los hace. Se pueden prender varios para ir más rápido.</td></tr>
+    <tr><td><b>Ack</b></td><td>El «recibido, ya lo terminé» que el worker le manda a la cola. Si el worker se cae antes, la cola le da el trabajo a otro.</td></tr>
+    <tr><td><b>DLQ</b></td><td>Cola de mensajes muertos: donde van a parar los trabajos que no se pudieron procesar, para revisarlos después.</td></tr>
+    <tr><td><b>Asíncrono</b></td><td>Pedir algo y seguir con lo tuyo, sin esperar la respuesta final.</td></tr>
+    <tr><td><b>202 Accepted</b></td><td>Respuesta HTTP que significa «recibí tu pedido, lo voy a procesar». No dice que terminó.</td></tr>
+    <tr><td><b>Traza / trace_id</b></td><td>El recorrido completo de un pedido por todas las piezas, identificado con un número único.</td></tr>
+    <tr><td><b>Span</b></td><td>Un tramo de una traza (por ejemplo «la etapa de test»), con su inicio, su duración y si falló.</td></tr>
+    <tr><td><b>Log</b></td><td>Una línea de texto que dice qué pasó. Los nuestros están en JSON y llevan el <code>trace_id</code>.</td></tr>
+    <tr><td><b>Métrica</b></td><td>Un número que se mide en el tiempo (cuántos pedidos, cuánto tardan, cuántos fallaron).</td></tr>
+    <tr><td><b>Contenedor</b></td><td>Una caja liviana con un programa y todo lo que necesita para correr igual en cualquier máquina.</td></tr>
+    <tr><td><b>Docker Compose</b></td><td>La receta que levanta todos los contenedores juntos y los conecta entre sí.</td></tr>
+    <tr><td><b>Contrato</b></td><td>El acuerdo escrito de cómo se hablan las piezas. Si todos lo cumplen, se pueden construir por separado.</td></tr>
+    <tr><td><b>Mock / doble de prueba</b></td><td>Una versión de mentira de una pieza, que responde lo que dice el contrato, para poder trabajar sin esperar la real.</td></tr>
+    <tr><td><b>PR</b></td><td>Pedido de cambio: se propone sumar tu rama a <code>main</code> para que el resto la revise y la vea.</td></tr>
+  </table>
+
+  <h2 style="margin-top:12pt">Qué falta definir</h2>
+  <ol>
+    <li><b>Quién toma cada parte</b> (los casilleros «Responsable» de las tarjetas).</li>
+    <li><b>La consigna oficial del TP2, la rúbrica y la fecha de entrega.</b> Hay que pegarlas en el <code>AGENTS.md</code> del Paso 0 para que el trabajo apunte a lo que puntúa.</li>
+    <li>Si hay que publicar las imágenes en Docker Hub o desplegar en la nube, como en el TP1.</li>
+    <li>Si las diapositivas se entregan como archivo. El esquema de las 7 diapositivas está en el README.</li>
+  </ol>
+  <div class="box ok"><b>Primer paso concreto:</b> una persona hace el Paso 0 (contrato y esqueleto). En cuanto esté en <code>main</code>, los cuatro arrancan en paralelo.</div>
+</section>
+
+</body>
+</html>

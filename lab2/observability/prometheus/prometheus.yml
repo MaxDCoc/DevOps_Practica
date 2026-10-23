@@ -1,0 +1,10 @@
+# PROVISORIO del Hito 0, para que el contenedor de Prometheus arranque.
+# P3 lo reemplaza con los targets reales: api, validator, rabbitmq (:15692) y el worker
+# descubierto por DNS (dns_sd_configs, names: [worker]) para ver todas las réplicas al escalar.
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

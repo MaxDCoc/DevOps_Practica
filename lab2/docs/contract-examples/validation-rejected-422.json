@@ -1,0 +1,8 @@
+{
+  "detail": {
+    "errors": [
+      "project: solo minúsculas, números y guiones (2 a 41 caracteres)",
+      "config.stage_seconds: debe estar entre 1 y 30"
+    ]
+  }
+}

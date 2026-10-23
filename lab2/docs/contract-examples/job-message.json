@@ -1,0 +1,11 @@
+{
+  "job_id": "7b1f6c0e-5d0a-4e07-9a52-2d7f2f0c9a11",
+  "project": "shop-frontend",
+  "branch": "main",
+  "config": {
+    "stages": ["build", "test", "deploy"],
+    "stage_seconds": 3,
+    "fail_at": null
+  },
+  "submitted_at": "2026-10-22T15:00:00Z"
+}

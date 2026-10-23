@@ -1,0 +1,17 @@
+{
+  "job_id": "1c4e8f20-93ab-4d57-b6a1-0e5d7c3a9f42",
+  "project": "shop-frontend",
+  "branch": "main",
+  "status": "succeeded",
+  "current_stage": "deploy",
+  "stages": [
+    {"name": "build", "status": "succeeded", "started_at": "2026-10-22T14:58:01Z", "duration_s": 3.0, "error": null},
+    {"name": "test", "status": "succeeded", "started_at": "2026-10-22T14:58:04Z", "duration_s": 3.0, "error": null},
+    {"name": "deploy", "status": "succeeded", "started_at": "2026-10-22T14:58:07Z", "duration_s": 3.0, "error": null}
+  ],
+  "attempts": 1,
+  "trace_id": "a3ce929d0e0e47364bf92f3577b34da6",
+  "submitted_at": "2026-10-22T14:58:00Z",
+  "finished_at": "2026-10-22T14:58:10Z",
+  "error": null
+}
