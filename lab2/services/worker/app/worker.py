@@ -10,6 +10,7 @@ from deployflow_common.contract import ENV_LOG_LEVEL, ENV_RABBITMQ_URL, ENV_WORK
 from deployflow_common.logging import setup_logging
 from deployflow_common.messaging import DEFAULT_RABBITMQ_URL, Consumer
 from deployflow_common.observability import setup_telemetry, shutdown_telemetry
+from deployflow_common.retry import max_attempts_from_env
 
 from .http_server import start_heartbeat, start_http_server
 from .processing import process
@@ -22,6 +23,7 @@ logger = logging.getLogger("worker")
 
 def main() -> None:
     setup_logging(SERVICE_NAME, os.environ.get(ENV_LOG_LEVEL, "INFO"))
+    max_attempts = max_attempts_from_env()  # antes de levantar nada: un MAX_ATTEMPTS inválido corta el arranque
     setup_telemetry(SERVICE_NAME)
 
     store = factory.get_job_store()
@@ -30,6 +32,7 @@ def main() -> None:
     consumer = Consumer(
         os.environ.get(ENV_RABBITMQ_URL, DEFAULT_RABBITMQ_URL),
         lambda delivery: process(delivery, store),
+        max_attempts=max_attempts,
     )
 
     # SIGTERM (docker stop / --scale hacia abajo): el trabajo en curso termina y recién ahí se sale.
@@ -40,7 +43,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
 
-    logger.info("worker %s listo, esperando trabajos", socket.gethostname())
+    logger.info("worker %s listo, esperando trabajos (hasta %d intentos por trabajo)", socket.gethostname(), max_attempts)
     try:
         consumer.run()
     finally:

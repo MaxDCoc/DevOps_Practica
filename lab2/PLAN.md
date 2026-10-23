@@ -220,8 +220,10 @@ compose (`depends_on: condition: service_healthy`).
 - [x] 🔴 `Dockerfile` del worker _(construido y probado en contenedor)_
 - [x] 🟡 `Publisher.queue_depth()`, `heartbeat`/`live_workers`, `counts`,
       `list_recent` (los usa `/stats`)
-- [ ] 🟡 Cola de reintento (`pipeline.jobs.retry`, espera 5 s). No está hecha: hoy un
-      error inesperado del handler va directo a la DLQ
+- [x] 🟡 Cola de reintento (`pipeline.jobs.retry`, espera 5 s): un error inesperado del
+      handler vuelve a la cola con `x-attempt` + 1 hasta `MAX_ATTEMPTS` (3 por defecto,
+      el primero incluido) y recién entonces va a la DLQ, con el job en `failed`
+      _(rama `lab2/p2-reintento`, ver «Verificado (reintento)»)_
 - [x] 🟡 Un mensaje que no es JSON válido va directo a la DLQ (probado)
 - [x] 🔴 **Hecho cuando:** un mensaje de prueba deja el estado
       `queued → running → succeeded` en Redis; `fail_at: test` termina `failed`
@@ -249,7 +251,35 @@ sobre la infraestructura de compose y con `TELEMETRY=off`:
 - 3 workers: `/stats` mostró `workers: 3`; con 9 pipelines en cola, los 12 de 3 s terminaron en
   12,9 s repartidos 4, 4 y 4. Los ~36 s con un solo worker son el cálculo (12 × 3 s), no una medición.
 - El campo `workers` de `/stats` tarda hasta 15 s en notar un worker muerto (es la vida del latido).
-- Quedó sin hacer la cola de reintento (🟡): hoy un error inesperado del handler va directo a la DLQ.
+- La cola de reintento (🟡) no formaba parte de esta prueba: se hizo después (ver «Verificado (reintento)»).
+
+**Verificado (reintento, 23/10):** 136 tests en `common` (la cola real contra RabbitMQ: la topología,
+el reintento con `x-attempt` + 1 y el `traceparent` intacto, el paso a la DLQ al agotar los intentos,
+dos vueltas completas por la cola esperando los 5 s reales y un reintento que no se puede encolar sin
+perder el mensaje) y 27 en el worker. Prueba de mutaciones: 26 cambios rotos a propósito, 25
+detectados; el que sobrevive es equivalente (la guarda `is_finished` de `_give_up` es redundante porque
+las transiciones del store ya son idempotentes). Prueba de punta a punta con el worker en un
+contenedor y la infraestructura de compose:
+- `MAX_ATTEMPTS=abc` y `MAX_ATTEMPTS=0` cortan el arranque con
+  `ValueError: MAX_ATTEMPTS tiene que ser un entero mayor o igual a 1…`.
+- Un pipeline normal termina `succeeded` en 1 intento y las tres colas quedan vacías.
+- Un fallo de negocio (`fail_at: test`) termina `failed` y no pasa por la cola de reintento ni por la
+  de muertos.
+- Redis caído 12 s con un trabajo en vuelo (`MAX_ATTEMPTS=5`): el worker reintentó 2 veces (cada intento
+  tarda unos 3 s en fallar al conectar con Redis, más los 5 s de espera) y el job terminó `succeeded`
+  a los 19,1 s, sin nada en la cola de muertos.
+- Un error que se repite (una etapa que el job no tiene) con `MAX_ATTEMPTS=3`: tres intentos separados
+  por ~6 s (5 s de espera + 1 s de trabajo); el job quedó `failed` a los 13,1 s con «error inesperado en
+  el intento 3 de 3: ValueError…» y `attempts=3`, la etapa que ya había terminado sigue `succeeded`, hay
+  1 mensaje en `pipeline.jobs.dead` con `x-attempt=3` y `pipeline_jobs_total{status="errored"}` marca 3.
+
+Lo que conviene saber (decisiones de diseño):
+- Mientras espera su reintento el job sigue `running` (no vuelve a `queued`): el contrato no tiene una
+  transición para eso.
+- Si el estado tampoco responde al agotar los intentos (Redis caído), el mensaje igual va a la cola de
+  muertos pero el job no se puede cerrar como `failed`: queda como estaba hasta que venza en Redis.
+- Un worker que muere sin confirmar no gasta intentos (el mensaje vuelve con el mismo `x-attempt`).
+- No se agregó ninguna métrica: `pipeline_jobs_total{status="errored"}` ya cuenta cada intento fallido.
 
 **Nota para P3** (qué quedó hecho en P2 y qué no hay que repetir):
 - Los spans de la cola los crea P2 con la API de OpenTelemetry (`opentelemetry.trace`), sin
@@ -415,5 +445,6 @@ Entrega:
 | 22/10 | — | Creados este `PLAN.md` y la guía del equipo (`docs/DeployFlow_guia_del_equipo.pdf`) |
 | 22/10 | MaxDCoc (con Claude) | Hito 0: `common/` con el contrato, las transiciones y los dobles (61 tests), 12 ejemplos JSON, `AGENTS.md`, dependencias fijadas y compose de infra levantado y verificado (4 servicios healthy). Todo en la rama `lab2/hito0-contrato` |
 | 22/10 | MaxDCoc (con Claude) | P1: validador (42 tests) y API principal (29 tests) con sus Dockerfiles, probados juntos en una red de Docker con estado en memoria y publisher falso. Rama `lab2/p1-apis`, parte de `lab2/hito0-contrato` |
-| 23/10 | MaxDCoc (con Claude) | P2: cola de RabbitMQ, estado en Redis y worker con sus tests (91 en `common` contra Redis y RabbitMQ reales, 18 en el worker) y su Dockerfile, probados de punta a punta en contenedores junto con P1: flujo completo, fallo controlado, `docker stop` ordenado, `docker kill` con redelivery y 3 workers. Mergeada a `main`. Queda sin hacer la cola de reintento (🟡) |
+| 23/10 | MaxDCoc (con Claude) | P2: cola de RabbitMQ, estado en Redis y worker con sus tests (91 en `common` contra Redis y RabbitMQ reales, 18 en el worker) y su Dockerfile, probados de punta a punta en contenedores junto con P1: flujo completo, fallo controlado, `docker stop` ordenado, `docker kill` con redelivery y 3 workers. Mergeada a `main`. La cola de reintento (🟡) se hizo después (fila siguiente) |
+| 23/10 | MaxDCoc (con Claude) | P2: cola de reintento (`pipeline.jobs.retry`, espera de 5 s, hasta `MAX_ATTEMPTS` intentos y después la DLQ con el job en `failed`). 136 tests en `common` y 27 en el worker, mutaciones 25/26 (1 equivalente) y prueba de punta a punta con el worker en contenedor. Rama `lab2/p2-reintento`, parte de `main`, sin mergear |
 |  |  |  |
