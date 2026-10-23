@@ -1,0 +1,14 @@
+# Los Dockerfiles de lab2 construyen con lab2/ como contexto (copian common/ y su servicio).
+# Esto deja afuera lo pesado o inútil para las imágenes.
+.git
+.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/*.egg-info
+**/node_modules
+**/tests
+docs
+*.pdf
+*.md
+.env
