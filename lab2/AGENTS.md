@@ -114,6 +114,8 @@ artificial `VALIDATOR_LATENCY_MS` (default 150) para que su span se vea en Jaege
   `POST` al validador (CLIENT) → validador `POST /validate` (SERVER); api `publish pipeline.jobs` (PRODUCER);
   worker `process pipeline.jobs` (CONSUMER, hijo del contexto extraído del mensaje) → `stage build|test|deploy`
   (INTERNAL). Una etapa fallida hace `record_exception` + status ERROR. Enlace a la traza: `{JAEGER_URL}/trace/{trace_id}`.
+  Los spans de la cola (PRODUCER, CONSUMER y las etapas) los crea P2 con la API de OpenTelemetry; P3 aporta
+  `setup_telemetry`, `inject_trace_context`, `extract_trace_context` y `current_trace_id`.
 - **Métricas** (nombres en `contract.py`): `http_requests_total{method,route,status}`,
   `http_request_duration_seconds`, `pipelines_submitted_total{result}`, `pipeline_jobs_total{status}`,
   `pipeline_job_duration_seconds`, `pipeline_stage_duration_seconds{stage}`, `pipeline_stage_failures_total{stage}`,
@@ -134,7 +136,7 @@ permiten desarrollar una parte sola y enchufar lo real después, sin tocar códi
 | `TELEMETRY` | `on` · `off` | `on` | `off` |
 
 Un valor desconocido **falla** con un `ValueError` (no cae en silencio en otro backend). Con `redis` o `rabbit`
-antes de que P2 entregue, falla con `NotImplementedError`: es a propósito.
+hace falta tener Redis y RabbitMQ levantados (`docker compose up -d`).
 
 ## Librería compartida `common/` (`deployflow_common`)
 
@@ -149,7 +151,8 @@ antes de que P2 entregue, falla con `NotImplementedError`: es a propósito.
 | `observability.py`, `logging.py`, `metrics.py` | Trazas, logs JSON y métricas | **P3** |
 
 `observability`, `logging` y `metrics` hoy son *stubs* que no hacen nada con la firma final: P1 y P2 ya
-pueden llamarlos. `messaging` y `state` fallan fuerte hasta que P2 los implemente.
+pueden llamarlos (los reemplaza P3). `messaging` y `state` ya están implementados por P2 y probados contra
+RabbitMQ y Redis reales: `RabbitPublisher`, `Consumer` y `Delivery` (cola) y `RedisJobStore` (estado).
 
 **Tests que cumplir.** `tests/store_contract.py` es la suite de contrato de cualquier `JobStore`: P2 la
 corre contra `RedisJobStore` (una subclase con una fixture `store`) y tiene que pasar igual que con memoria.
