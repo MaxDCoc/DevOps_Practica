@@ -91,13 +91,25 @@ artificial `VALIDATOR_LATENCY_MS` (default 150) para que su span se vea en Jaege
 ## Contrato de la cola (RabbitMQ)
 
 - Exchange directo durable `pipelines` (routing key `pipeline.run`) → cola durable `pipeline.jobs`.
-- DLX `pipelines.dlx` → cola `pipeline.jobs.dead`. Reintento (🟡): `pipeline.jobs.retry`, TTL 5 s, vuelve a `pipelines`.
+- DLX `pipelines.dlx` → cola `pipeline.jobs.dead`. Reintento: cola durable `pipeline.jobs.retry` con TTL de 5 s
+  que, al vencer, devuelve el mensaje a `pipelines` (routing key `pipeline.run`). El consumidor publica en ella
+  por el exchange por defecto. Los argumentos de una cola no se pueden cambiar una vez creada, por eso los 5 s
+  son una constante del contrato (`RETRY_DELAY_MS`) y no una variable de entorno.
 - Mensaje persistente, JSON = `JobMessage { job_id, project, branch, config, submitted_at }`.
   `message_id = job_id`. Headers: `traceparent` (W3C) y `x-attempt`.
 - Consumidor: **ack manual**, `prefetch_count=1`, y dormir con `connection.sleep()` (no `time.sleep()`: bloquea
   los heartbeats y el mensaje se redelivera solo).
 - Un fallo **de negocio** (`fail_at`) termina en `failed` y el mensaje **se confirma** (sin reintento).
-  Un fallo **inesperado** va a reintento/DLQ. Un worker muerto sin ack hace que RabbitMQ redelivere.
+- Un fallo **inesperado** (el handler lanza una excepción: Redis caído, un bug) se reintenta hasta `MAX_ATTEMPTS`
+  intentos en total (por defecto 3, el primero incluido). Mientras `x-attempt < MAX_ATTEMPTS`, el consumidor
+  encola una copia en `pipeline.jobs.retry` con `x-attempt + 1` (mismo `traceparent`; sin los headers `x-death*`
+  que agrega el broker) y **recién después** confirma el original: si se corta entre una cosa y la otra queda un
+  duplicado, nunca un trabajo perdido. Si no puede encolar el reintento, no confirma el original y RabbitMQ lo
+  redelivera. Al agotarse los intentos: nack sin reencolar → `pipeline.jobs.dead`, y el worker deja el job
+  `failed` con el error (la etapa que estaba corriendo también queda `failed`). Mientras espera su reintento el
+  job sigue `running`.
+- Un worker muerto sin ack hace que RabbitMQ redelivere (`redelivered=true`, `x-attempt` no cambia: un crash
+  no gasta intentos). Un mensaje que no es JSON válido va directo a la cola de muertos, sin reintento.
 
 ## Contrato del estado (Redis)
 
@@ -138,6 +150,9 @@ permiten desarrollar una parte sola y enchufar lo real después, sin tocar códi
 Un valor desconocido **falla** con un `ValueError` (no cae en silencio en otro backend). Con `redis` o `rabbit`
 hace falta tener Redis y RabbitMQ levantados (`docker compose up -d`).
 
+`MAX_ATTEMPTS` (por defecto 3) lo lee el worker al arrancar: son los intentos **totales** por trabajo, el primero
+incluido (`1` = sin reintentos). Un valor que no sea un entero ≥ 1 corta el arranque con un error claro.
+
 ## Librería compartida `common/` (`deployflow_common`)
 
 | Módulo | Qué es | Dueño |
@@ -146,7 +161,8 @@ hace falta tener Redis y RabbitMQ levantados (`docker compose up -d`).
 | `transitions.py` | `begin_attempt`, `apply_stage_update`, `apply_finish` (funciones puras) | Hito 0 (congelado) |
 | `interfaces.py` | Protocolos `JobStore` y `Publisher`, y `PublishError` | Hito 0 (congelado) |
 | `fakes.py`, `factory.py` | `InMemoryJobStore`, `FakePublisher` y los interruptores | Hito 0 (congelado) |
-| `messaging.py` | `RabbitPublisher`, `declare_topology`, `consume` | **P2** |
+| `messaging.py` | `RabbitPublisher`, `declare_topology`, `Consumer`, `Delivery` | **P2** |
+| `retry.py` | Reglas del reintento: `attempt_of`, `retry_headers`, `max_attempts_from_env` | **P2** |
 | `state.py` | `RedisJobStore` | **P2** |
 | `observability.py`, `logging.py`, `metrics.py` | Trazas, logs JSON y métricas | **P3** |
 
