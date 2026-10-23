@@ -64,7 +64,7 @@ mensajería funcionando (P2 + P1), después se suma la observabilidad (P3) y por
 | Parte | Responsable | Carpetas propias | Puede arrancar YA con |
 |---|---|---|---|
 | **P1 — API** | MaxDCoc | `services/api/`, `services/validator/` | Las reglas del validador como funciones puras con tests |
-| **P2 — Mensajería** | ________ | `services/worker/`, `common/.../messaging.py`, `state.py` | El ejecutor de etapas con tests; RabbitMQ y Redis con compose |
+| **P2 — Mensajería** | MaxDCoc | `services/worker/`, `common/.../messaging.py`, `state.py` | El ejecutor de etapas con tests; RabbitMQ y Redis con compose |
 | **P3 — Observabilidad** | ________ | `common/.../observability.py`, `logging.py`, `metrics.py`, `observability/` | El formateador de logs JSON y el test de `inject`/`extract` |
 | **P4 — Plataforma** (+ front 🟡) | ________ | `docker-compose.yml`, `scripts/`, `README.md`, `services/web/` | El compose de infraestructura (y los mocks del front, si hay dashboard) |
 
@@ -415,4 +415,5 @@ Entrega:
 | 22/10 | — | Creados este `PLAN.md` y la guía del equipo (`docs/DeployFlow_guia_del_equipo.pdf`) |
 | 22/10 | MaxDCoc (con Claude) | Hito 0: `common/` con el contrato, las transiciones y los dobles (61 tests), 12 ejemplos JSON, `AGENTS.md`, dependencias fijadas y compose de infra levantado y verificado (4 servicios healthy). Todo en la rama `lab2/hito0-contrato` |
 | 22/10 | MaxDCoc (con Claude) | P1: validador (42 tests) y API principal (29 tests) con sus Dockerfiles, probados juntos en una red de Docker con estado en memoria y publisher falso. Rama `lab2/p1-apis`, parte de `lab2/hito0-contrato` |
+| 23/10 | MaxDCoc (con Claude) | P2: cola de RabbitMQ, estado en Redis y worker con sus tests (91 en `common` contra Redis y RabbitMQ reales, 18 en el worker) y su Dockerfile, probados de punta a punta en contenedores junto con P1: flujo completo, fallo controlado, `docker stop` ordenado, `docker kill` con redelivery y 3 workers. Mergeada a `main`. Queda sin hacer la cola de reintento (🟡) |
 |  |  |  |
