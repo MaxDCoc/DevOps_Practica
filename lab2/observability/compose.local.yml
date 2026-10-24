@@ -1,0 +1,74 @@
+# Complemento de P3 para pruebas locales, NO reemplaza el compose final de P4.
+# Desde lab2/: docker compose -f docker-compose.yml -f observability/compose.local.yml up --build -d --wait
+# Las rutas relativas se resuelven contra el PRIMER archivo (lab2/docker-compose.yml).
+x-telemetry: &telemetry
+  TELEMETRY: "on"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+  LOG_LEVEL: INFO
+
+x-health: &health
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+  interval: 5s
+  timeout: 3s
+  retries: 10
+  start_period: 10s
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    environment:
+      <<: *telemetry
+      STATE_BACKEND: redis
+      PUBLISHER: rabbit
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-deployflow}:${RABBITMQ_PASS:-deployflow}@rabbitmq:5672/
+      VALIDATOR_URL: http://validator:8000
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      validator:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    healthcheck: *health
+
+  validator:
+    build:
+      context: .
+      dockerfile: services/validator/Dockerfile
+    environment:
+      <<: *telemetry
+      VALIDATOR_LATENCY_MS: "150"
+    ports:
+      - "127.0.0.1:8001:8000"
+    depends_on:
+      jaeger:
+        condition: service_healthy
+    healthcheck: *health
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/worker/Dockerfile
+    environment:
+      <<: *telemetry
+      STATE_BACKEND: redis
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-deployflow}:${RABBITMQ_PASS:-deployflow}@rabbitmq:5672/
+      WORKER_METRICS_PORT: "8000"
+    # Sin container_name ni ports: permite --scale worker=3.
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    healthcheck: *health
+    stop_grace_period: 120s

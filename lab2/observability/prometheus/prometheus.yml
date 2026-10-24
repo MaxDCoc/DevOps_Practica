@@ -1,10 +1,36 @@
-# PROVISORIO del Hito 0, para que el contenedor de Prometheus arranque.
-# P3 lo reemplaza con los targets reales: api, validator, rabbitmq (:15692) y el worker
-# descubierto por DNS (dns_sd_configs, names: [worker]) para ver todas las réplicas al escalar.
 global:
   scrape_interval: 5s
+  evaluation_interval: 5s
 
 scrape_configs:
   - job_name: prometheus
     static_configs:
-      - targets: ["localhost:9090"]
+      - targets: ["127.0.0.1:9090"]
+
+  - job_name: api
+    static_configs:
+      - targets: ["api:8000"]
+
+  - job_name: validator
+    static_configs:
+      - targets: ["validator:8000"]
+
+  # Docker DNS devuelve una dirección por réplica. No publicar puertos del worker.
+  - job_name: worker
+    dns_sd_configs:
+      - names: [worker]
+        type: A
+        port: 8000
+        refresh_interval: 5s
+
+  - job_name: rabbitmq
+    static_configs:
+      - targets: ["rabbitmq:15692"]
+
+  # /metrics es agregado: para filtrar por queue hace falta /metrics/detailed.
+  - job_name: rabbitmq-queues
+    metrics_path: /metrics/detailed
+    params:
+      family: [queue_coarse_metrics, queue_consumer_count]
+    static_configs:
+      - targets: ["rabbitmq:15692"]
