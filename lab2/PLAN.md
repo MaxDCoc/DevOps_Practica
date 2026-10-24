@@ -220,8 +220,10 @@ compose (`depends_on: condition: service_healthy`).
 - [x] 🔴 `Dockerfile` del worker _(construido y probado en contenedor)_
 - [x] 🟡 `Publisher.queue_depth()`, `heartbeat`/`live_workers`, `counts`,
       `list_recent` (los usa `/stats`)
-- [ ] 🟡 Cola de reintento (`pipeline.jobs.retry`, espera 5 s). No está hecha: hoy un
-      error inesperado del handler va directo a la DLQ
+- [x] 🟡 Cola de reintento (`pipeline.jobs.retry`, espera 5 s): un error inesperado del
+      handler vuelve a la cola con `x-attempt` + 1 hasta `MAX_ATTEMPTS` (3 por defecto,
+      el primero incluido) y recién entonces va a la DLQ, con el job en `failed`
+      _(rama `lab2/p2-reintento`, ver «Verificado (reintento)»)_
 - [x] 🟡 Un mensaje que no es JSON válido va directo a la DLQ (probado)
 - [x] 🔴 **Hecho cuando:** un mensaje de prueba deja el estado
       `queued → running → succeeded` en Redis; `fail_at: test` termina `failed`
@@ -249,7 +251,35 @@ sobre la infraestructura de compose y con `TELEMETRY=off`:
 - 3 workers: `/stats` mostró `workers: 3`; con 9 pipelines en cola, los 12 de 3 s terminaron en
   12,9 s repartidos 4, 4 y 4. Los ~36 s con un solo worker son el cálculo (12 × 3 s), no una medición.
 - El campo `workers` de `/stats` tarda hasta 15 s en notar un worker muerto (es la vida del latido).
-- Quedó sin hacer la cola de reintento (🟡): hoy un error inesperado del handler va directo a la DLQ.
+- La cola de reintento (🟡) no formaba parte de esta prueba: se hizo después (ver «Verificado (reintento)»).
+
+**Verificado (reintento, 23/10):** 136 tests en `common` (la cola real contra RabbitMQ: la topología,
+el reintento con `x-attempt` + 1 y el `traceparent` intacto, el paso a la DLQ al agotar los intentos,
+dos vueltas completas por la cola esperando los 5 s reales y un reintento que no se puede encolar sin
+perder el mensaje) y 27 en el worker. Prueba de mutaciones: 26 cambios rotos a propósito, 25
+detectados; el que sobrevive es equivalente (la guarda `is_finished` de `_give_up` es redundante porque
+las transiciones del store ya son idempotentes). Prueba de punta a punta con el worker en un
+contenedor y la infraestructura de compose:
+- `MAX_ATTEMPTS=abc` y `MAX_ATTEMPTS=0` cortan el arranque con
+  `ValueError: MAX_ATTEMPTS tiene que ser un entero mayor o igual a 1…`.
+- Un pipeline normal termina `succeeded` en 1 intento y las tres colas quedan vacías.
+- Un fallo de negocio (`fail_at: test`) termina `failed` y no pasa por la cola de reintento ni por la
+  de muertos.
+- Redis caído 12 s con un trabajo en vuelo (`MAX_ATTEMPTS=5`): el worker reintentó 2 veces (cada intento
+  tarda unos 3 s en fallar al conectar con Redis, más los 5 s de espera) y el job terminó `succeeded`
+  a los 19,1 s, sin nada en la cola de muertos.
+- Un error que se repite (una etapa que el job no tiene) con `MAX_ATTEMPTS=3`: tres intentos separados
+  por ~6 s (5 s de espera + 1 s de trabajo); el job quedó `failed` a los 13,1 s con «error inesperado en
+  el intento 3 de 3: ValueError…» y `attempts=3`, la etapa que ya había terminado sigue `succeeded`, hay
+  1 mensaje en `pipeline.jobs.dead` con `x-attempt=3` y `pipeline_jobs_total{status="errored"}` marca 3.
+
+Lo que conviene saber (decisiones de diseño):
+- Mientras espera su reintento el job sigue `running` (no vuelve a `queued`): el contrato no tiene una
+  transición para eso.
+- Si el estado tampoco responde al agotar los intentos (Redis caído), el mensaje igual va a la cola de
+  muertos pero el job no se puede cerrar como `failed`: queda como estaba hasta que venza en Redis.
+- Un worker que muere sin confirmar no gasta intentos (el mensaje vuelve con el mismo `x-attempt`).
+- No se agregó ninguna métrica: `pipeline_jobs_total{status="errored"}` ya cuenta cada intento fallido.
 
 **Nota para P3** (qué quedó hecho en P2 y qué no hay que repetir):
 - Los spans de la cola los crea P2 con la API de OpenTelemetry (`opentelemetry.trace`), sin
@@ -317,17 +347,20 @@ de consola preexistente: corregida con regresión RED→GREEN, conservando handl
 de captura/archivo. Starlette emite una advertencia de deprecación de TestClient
 con httpx; no se cambiaron las dependencias congeladas para ocultarla.
 
-### P4 — Plataforma y entrega 🔲 · Responsable: ________
+### P4 — Plataforma y entrega 🔶 · Responsable: ________
 
-- [ ] 🔴 `docker-compose.yml` completo: red, `depends_on:
+- [x] 🔴 `docker-compose.yml` completo: red, `depends_on:
       condition: service_healthy`, `restart`, `stop_grace_period` del worker,
       **sin puertos publicados en el worker** (si no, `--scale` choca), plugin
       `rabbitmq_prometheus` (**ya viene habilitado** en la imagen 4.3.7, verificado
       en el Hito 0: no hace falta activarlo)
-- [ ] 🔴 Healthchecks con **`127.0.0.1`, no `localhost`** (aprendido en lab1:
+      _Sin el dashboard. `TELEMETRY=off` literal en api, validator y worker._
+- [x] 🔴 Healthchecks con **`127.0.0.1`, no `localhost`** (aprendido en lab1:
       `localhost` resuelve primero a IPv6 y el contenedor queda unhealthy)
-- [ ] 🔴 `scripts/demo.py` con `ok`, `fail`, `burst --n 30` y `scale 3`
-- [ ] 🔴 `README.md`: cómo levantar, endpoints con ejemplos, URLs de las UIs
+      _Las imágenes `python:3.12-slim` no traen wget: el chequeo usa `urllib` contra
+      `http://127.0.0.1:8000/health`._
+- [x] 🔴 `scripts/demo.py` con `ok`, `fail`, `burst --n 30` y `scale 3`
+- [x] 🔴 `README.md`: cómo levantar, endpoints con ejemplos, URLs de las UIs
       (RabbitMQ `:15672`, Jaeger `:16686`, Prometheus `:9090`), cómo reproducir
       éxito, fallo y escalado, `docker compose down -v`
 - [ ] 🟡 **Dashboard** en `services/web/` (Vite + React + TS, patrón de
@@ -335,6 +368,7 @@ con httpx; no se cambiaron las dependencias congeladas para ocultarla.
       atajos *Ejecutar OK* / *Forzar fallo en test* / *Lanzar 10*, lista en vivo
       (polling cada 2 s) con enlace *Ver traza en Jaeger*, panel de
       estadísticas, `Dockerfile` + `nginx.conf.template` con proxy `/api`
+      _El enlace a Jaeger muestra `trace_id` null hasta el merge de P3._
 - [ ] 🟡 `COLOQUIO.md` (cheat sheet, guion con tiempos, preguntas por rol) y
       `slides/OUTLINE.md` con las 7 diapositivas
 - [ ] 🟡 *(lo toma P1 al terminar su núcleo)* `tests/e2e/test_flow.py` y
@@ -342,7 +376,68 @@ con httpx; no se cambiaron las dependencias congeladas para ocultarla.
       `docker compose config` y `build`, Semgrep sobre `lab2/`). No se tocan
       `ci.yml` ni `sast.yml` de lab1
 
-**Verificado:** _pendiente_
+**Verificado (23/10):** `docker compose up --build -d --wait` dejó los 7 servicios
+healthy. El worker publica `8000/tcp` solo dentro de la red (sin puerto en el host).
+`python scripts/demo.py ok` → `202` en 340 ms y `succeeded` (`trace_id=None`).
+`fail` → `202` en 187 ms, `failed` y `deploy` en `pending`.
+`scale 3` pasó de `workers=1` a `workers=3` sin recrear el primero.
+`burst --n 3` (con los 3 workers ya arriba) terminó los 3 en `succeeded`;
+`queue_depth` salió 0 porque los workers ya los habían tomado.
+`docker compose down -v` borró contenedores y la red. `burst --n 30` es el mismo
+comando; no se corrió en esta pasada.
+
+#### Después del merge de P3
+
+No hace falta tocar la API, el validador ni el worker: ya llaman a
+`setup_telemetry`, `inject_trace_context` y `extract_trace_context`. Hoy esas
+funciones están vacías, por eso `trace_id` vuelve `null` y Jaeger no muestra el
+pedido. El archivo `observability/prometheus/prometheus.yml` es de P3; no se
+cambió. Orden:
+
+1. En `docker-compose.yml`, en **api**, **validator** y **worker**, pasar
+   `TELEMETRY: "off"` a `TELEMETRY: "on"`. Está escrito literal a propósito:
+   un `.env` con `TELEMETRY=on` no entra al contenedor mientras el compose
+   diga `off`. `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317` ya está.
+2. Reemplazar `observability/prometheus/prometheus.yml` por el scrape real y
+   validar con `docker compose exec prometheus promtool check config
+   /etc/prometheus/prometheus.yml` (o `promtool` en el host). El worker ya
+   sirve `/metrics` en su propio servidor; `start_metrics_server` de P3 no
+   hace falta para él.
+
+   ```yaml
+   global:
+     scrape_interval: 5s
+   scrape_configs:
+     - job_name: api
+       static_configs:
+         - targets: ["api:8000"]
+     - job_name: validator
+       static_configs:
+         - targets: ["validator:8000"]
+     - job_name: rabbitmq
+       static_configs:
+         - targets: ["rabbitmq:15692"]
+     - job_name: worker
+       dns_sd_configs:
+         - names: ["worker"]
+           type: A
+           port: 8000
+           refresh_interval: 5s
+   ```
+
+3. `docker compose up -d --build`. Un `python scripts/demo.py ok` tiene que
+   devolver un `trace_id` de 32 hex. Ese mismo id tiene que aparecer en
+   Jaeger (`http://localhost:16686`, una sola traza con api, validator y
+   worker: `POST /pipelines`, `publish pipeline.jobs`, `process pipeline.jobs`,
+   `stage build|test|deploy`) y en `docker compose logs worker`.
+4. `python scripts/demo.py fail`: el span `stage test` en rojo en Jaeger, un
+   log `level=error` y el job `failed`.
+5. `python scripts/demo.py scale 3` y, en Prometheus
+   (`http://localhost:9090/targets`), tres targets `worker` en UP más `api`,
+   `validator` y `rabbitmq`.
+6. Recién ahí tildar el paso 3 de la Fase 5 y la casilla de la Fase 4 que pide
+   los targets de Prometheus. El dashboard, el coloquio y el CI siguen en
+   sus casillas amarillas.
 
 ## Fase 2 — Núcleo asíncrono: API ↔ cola ↔ worker (N2) 🔲
 
@@ -380,18 +475,24 @@ con httpx; no se cambiaron las dependencias congeladas para ocultarla.
 `EXPECTED_WORKERS=3 .venv/bin/python -m pytest observability/check_local.py -v -s`
 → 5 passed. Solo en la rama `lab2/p3`, sin integrar a `main`.
 
-## Fase 4 — Todo junto (N4) 🔲
+## Fase 4 — Todo junto (N4) 🔶
 
 **Lidera:** P4
 
-- [ ] 🔴 Clon limpio en una carpeta nueva → `docker compose up --build -d` →
+- [x] 🔴 Clon limpio en una carpeta nueva → `docker compose up --build -d` →
       `docker compose ps` con todo `healthy`, sin pasos manuales
+      _Probado en esta copia de trabajo, no en un segundo clon: `up --build -d --wait`
+      dejó api, validator, worker, rabbitmq, redis, jaeger y prometheus healthy._
 - [ ] 🔴 `docker compose up -d --scale worker=3` → 3 targets de worker en
       Prometheus y la cola se vacía ~3 veces más rápido
+      _La mitad de workers ya anda: `python scripts/demo.py scale 3` mostró
+      `workers=3` en `/stats`. Los targets de Prometheus esperan el
+      `prometheus.yml` de P3 (ver «Después del merge de P3» en P4)._
 - [ ] 🟡 El dashboard apunta al `/api` real (ya no al mock) y funciona
-- [ ] 🔴 `docker compose down -v` sin residuos
+- [x] 🔴 `docker compose down -v` sin residuos
 
-**Verificado:** _pendiente_
+**Verificado (23/10):** ver P4. `down -v` eliminó los contenedores y la red
+`deployflow_default`.
 
 ## Fase 5 — Demo y entrega 🔲
 
@@ -399,7 +500,8 @@ con httpx; no se cambiaron las dependencias congeladas para ocultarla.
 
 La demo de 5 pasos (lo que hay que poder mostrar sin dudar):
 
-- [ ] 🔴 **Paso 1:** `POST /pipelines` → `202` con `job_id`
+- [x] 🔴 **Paso 1:** `POST /pipelines` → `202` con `job_id`
+      _`scripts/demo.py ok`, 23/10: `202` en 340 ms. `trace_id` todavía `null`._
 - [ ] 🔴 **Paso 2:** el worker tarda varios segundos; mientras tanto la API
       acepta más pedidos; `GET /pipelines/{id}` muestra el avance
 - [ ] 🔴 **Paso 3:** Jaeger muestra el mismo `trace_id` atravesando API,
@@ -417,7 +519,7 @@ Entrega:
 - [ ] 🔴 `README.md` congelado
 - [ ] 🟡 `COLOQUIO.md` y diapositivas (el coloquio es **individual**: cada uno
       tiene que poder explicar todo el proyecto, no solo su parte)
-- [ ] 🟡 Sección "Lab 2" en el `README.md` de la raíz del repo
+- [x] 🟡 Sección "Lab 2" en el `README.md` de la raíz del repo
 
 **Verificado:** _pendiente_
 
@@ -445,3 +547,6 @@ Entrega:
 | 23/10 | MaxDCoc (con Claude) | P2: cola de RabbitMQ, estado en Redis y worker con sus tests (91 en `common` contra Redis y RabbitMQ reales, 18 en el worker) y su Dockerfile, probados de punta a punta en contenedores junto con P1: flujo completo, fallo controlado, `docker stop` ordenado, `docker kill` con redelivery y 3 workers. Mergeada a `main`. Queda sin hacer la cola de reintento (🟡) |
 | 23/10 | — (rama `lab2/p3`) | P3 implementada y validada localmente: trazas OTLP, contexto AMQP, logs JSON, métricas HTTP, DNS de workers, consultas y compose complementario. 204 tests de regresión + 5 de integración; 30 jobs y escalado 1→3. Cambio mínimo de log en P2 autorizado. Publicación de la rama autorizada; merge a main reservado al usuario en GitHub. |
 |  |  |  |
+| 23/10 | MaxDCoc (con Claude) | P2: cola de RabbitMQ, estado en Redis y worker con sus tests (91 en `common` contra Redis y RabbitMQ reales, 18 en el worker) y su Dockerfile, probados de punta a punta en contenedores junto con P1: flujo completo, fallo controlado, `docker stop` ordenado, `docker kill` con redelivery y 3 workers. Mergeada a `main`. La cola de reintento (🟡) se hizo después (fila siguiente) |
+| 23/10 | MaxDCoc (con Claude) | P2: cola de reintento (`pipeline.jobs.retry`, espera de 5 s, hasta `MAX_ATTEMPTS` intentos y después la DLQ con el job en `failed`). 136 tests en `common` y 27 en el worker, mutaciones 25/26 (1 equivalente) y prueba de punta a punta con el worker en contenedor. Rama `lab2/p2-reintento`, mergeada a `main` |
+| 23/10 | — | P4 sin P3: api, validator y worker en el compose (`TELEMETRY=off`), `scripts/demo.py` y `lab2/README.md`. Verificado `ok`, `fail`, `scale 3`, `burst --n 3` y `down -v`. En P4 quedó el procedimiento para encender trazas y Prometheus al mergear P3 |

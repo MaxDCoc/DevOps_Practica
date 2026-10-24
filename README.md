@@ -14,6 +14,15 @@ cd lab1
 docker compose up --build
 ```
 
+## Lab 2
+
+Ver [lab2/README.md](lab2/README.md).
+
+```bash
+cd lab2
+docker compose up --build -d
+```
+
 ## CI/CD
 
 - **CI** (`.github/workflows/ci.yml`): tests Vitest de la API + build/push de imágenes `subastas-api` y `subastas-web` a Docker Hub.

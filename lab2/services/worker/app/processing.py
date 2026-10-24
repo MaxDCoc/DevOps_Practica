@@ -1,5 +1,7 @@
 """Procesa un mensaje de la cola: corre el pipeline y deja las métricas y las trazas."""
 
+import logging
+
 from deployflow_common.contract import SPAN_PROCESS
 from deployflow_common.interfaces import JobStore
 from deployflow_common.messaging import Delivery
@@ -8,6 +10,8 @@ from opentelemetry import trace
 
 from . import metrics
 from .runner import Outcome, run_pipeline
+
+logger = logging.getLogger("worker")
 
 
 def process(delivery: Delivery, store: JobStore, *, tracer: trace.Tracer | None = None) -> Outcome:
@@ -30,17 +34,40 @@ def process(delivery: Delivery, store: JobStore, *, tracer: trace.Tracer | None 
                 "messaging.message.id": message.job_id,
                 "job.id": message.job_id,
                 "job.project": message.project,
+                "job.attempt": delivery.attempt,
             },
         ):
             outcome = run_pipeline(message, store, sleep=delivery.sleep, tracer=tracer)
-    except Exception:
+    except Exception as exc:
         metrics.JOBS.labels("errored").inc()
+        if delivery.last_attempt:
+            error = f"error inesperado en el intento {delivery.attempt} de {delivery.max_attempts}: {type(exc).__name__}: {exc}"
+            _give_up(store, message.job_id, error)
         raise
     finally:
         metrics.IN_PROGRESS.dec()
 
     _record(outcome)
     return outcome
+
+
+def _give_up(store: JobStore, job_id: str, error: str) -> None:
+    """Último intento fallado: el mensaje va a la cola de muertos, así que el job se cierra como fallado.
+
+    Sin esto el job quedaría «running» hasta que venza en Redis. Es un intento de mejor esfuerzo: si el estado
+    tampoco responde, se anota en el log y el error que se propaga sigue siendo el original.
+    """
+    try:
+        state = store.get(job_id)
+        if state is None or state.is_finished:
+            return
+        # Solo la etapa que estaba corriendo: si el error cayó entre dos etapas, la anterior ya terminó bien.
+        running = next((stage for stage in state.stages if stage.status == "running"), None)
+        if running is not None:
+            store.update_stage(job_id, running.name, "failed", error=error)
+        store.finish(job_id, "failed", error=error)
+    except Exception:  # noqa: BLE001 - no tapar el error original del handler
+        logger.exception("no se pudo marcar el job %s como fallado", job_id)
 
 
 def _record(outcome: Outcome) -> None:
