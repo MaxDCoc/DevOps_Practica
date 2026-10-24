@@ -1,5 +1,6 @@
 """Ejecuta un pipeline simulado: etapa por etapa, anotando el avance en el estado."""
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
@@ -8,6 +9,8 @@ from deployflow_common.contract import SPAN_STAGE, JobMessage, JobState
 from deployflow_common.interfaces import JobStore
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
+
+logger = logging.getLogger("worker.runner")
 
 
 class StageFailed(Exception):
@@ -50,6 +53,7 @@ def run_pipeline(
                 error = f"falló la etapa {stage} (simulado)"
                 span.set_status(Status(StatusCode.ERROR, error))
                 span.record_exception(StageFailed(error))
+                logger.error(error, extra={"job_id": message.job_id, "stage": stage, "error": error})
                 store.update_stage(message.job_id, stage, "failed", error=error)
                 final = store.finish(message.job_id, "failed", error=error)
                 return Outcome("failed", failed_stage=stage, state=final)

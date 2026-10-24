@@ -266,31 +266,56 @@ sobre la infraestructura de compose y con `TELEMETRY=off`:
 - El worker sirve `/health` y `/metrics` con su propio servidor
   (`services/worker/app/http_server.py`): `start_metrics_server` no hace falta para el worker.
 
-### P3 — Observabilidad 🔲 · Responsable: ________
+### P3 — Observabilidad ✅ (verificada localmente en `lab2/p3`, sin merge) · Responsable: ________
 
-- [ ] 🔴 `setup_logging`: una línea JSON con `ts, level, service, msg, trace_id,
-      span_id` + test
-- [ ] 🔴 `setup_telemetry`: Resource, TracerProvider, `BatchSpanProcessor` + OTLP
-      gRPC a Jaeger; `shutdown_telemetry` con flush (si no, se pierden los
-      spans del último job); respeta `TELEMETRY=off`
-- [ ] 🔴 `inject_trace_context` / `extract_trace_context` sobre los headers AMQP
-      (coerción bytes↔str) + test: el `trace_id` sobrevive al viaje
-- [ ] 🔴 Helpers de span PRODUCER y CONSUMER con atributos `messaging.*` (los
-      usa P2)
-- [ ] 🔴 `instrument_fastapi`: spans de FastAPI y `httpx`, métricas HTTP con
-      `route` por **plantilla** (no la URL cruda) y `/metrics`
-- [ ] 🔴 `start_metrics_server` para el worker
-- [ ] 🔴 `observability/prometheus/prometheus.yml`: `scrape_interval: 5s`, api y
-      validator estáticos, **worker con `dns_sd_configs`** (`names: [worker]`,
-      puerto 8000), rabbitmq `:15692`; validado con `promtool check config`
-- [ ] 🔴 `observability/queries.md`: PromQL y búsquedas de Jaeger para la demo
-      (tasa de fallos, p95, cola `ready`, `count(up{job="worker"})`)
+- [x] 🔴 `setup_logging`: una línea JSON con `ts, level, service, logger, msg,
+      trace_id, span_id` + extras y excepciones; tests de correlación e idempotencia
+- [x] 🔴 `setup_telemetry`: Resource, TracerProvider, `BatchSpanProcessor` + OTLP
+      gRPC a Jaeger; `shutdown_telemetry` con flush; respeta `TELEMETRY=off`
+- [x] 🔴 `inject_trace_context` / `extract_trace_context` sobre los headers AMQP
+      (coerción bytes↔str) + tests de contexto válido, ausente e inválido
+- [x] 🔴 Spans PRODUCER y CONSUMER con atributos `messaging.*`: se reutilizan los
+      de P2, sin agregar helpers duplicados; validada la cadena de padres en Jaeger
+- [x] 🔴 `instrument_fastapi`: spans de FastAPI y `httpx`, métricas HTTP con
+      `route` por **plantilla** (404 agrupados) y `/metrics`
+- [x] 🔴 `start_metrics_server` implementado como helper del contrato, pero no
+      se llama desde el worker: P2 ya sirve `/health` y `/metrics`
+- [x] 🔴 `observability/prometheus/prometheus.yml`: intervalos de 5 s, api y
+      validator estáticos, worker con DNS A y puerto 8000, RabbitMQ `:15692` y
+      `/metrics/detailed` para detalle por cola; validado con `promtool`
+- [x] 🔴 `observability/queries.md`: PromQL y búsquedas Jaeger para la demo;
+      `sum(up{job="worker"})` cuenta sanos, `count(up)` cuenta targets totales
 - [ ] 🟡 Regla de alerta por tasa de fallos
 - [ ] ⚪ Grafana / Loki
-- [ ] 🔴 **Hecho cuando:** los tests pasan y Jaeger y Prometheus del compose de
-      infra levantan con tu configuración
+- [x] 🔴 **Hecho cuando:** los tests pasan y Jaeger y Prometheus levantan con la
+      configuración; integración local validada con 1 y 3 workers
 
-**Verificado:** _pendiente_
+**Verificado (23/10, local):** 114 tests en `common`, 29 de API, 42 del validador y
+19 del worker (204 en total), con RabbitMQ y Redis reales disponibles. Cinco tests
+opt-in en `observability/check_local.py` verifican traza completa, padres, fallo,
+logs correlacionados, targets UP, contador de fallos y detalle de cola. Pasaron
+con 1 worker y con 3; ejecución final con 3. `promtool check config` y Compose
+válidos; 18 consultas PromQL aceptadas por Prometheus real. Último POST exitoso:
+202 en 0,243 s; traza `a722b8dcb2aa258d55e9aceadf53b572`. Fallo:
+`ec6362d750442026173830d91e4c12e5`.
+
+**Escalado medido:** 30 pipelines de 3 etapas × 1 s, enviados en 4,88 s;
+28 pendientes antes de escalar de 1 a 3 workers; los 30 terminaron bien en
+36,75 s desde el primer envío. No es una comparación controlada de rendimiento:
+incluye envío, arranque/escalado y consultas de seguimiento.
+
+**Integración:** se usa `observability/compose.local.yml`, sin editar el compose
+de P4. Cambio mínimo en P2 autorizado por el usuario: log de error dentro del span
+de etapa y su test, sin tocar la ejecución ni el ack. Instrucciones en
+`observability/README.md`. Publicación de `lab2/p3` autorizada por el usuario;
+el merge a `main` queda a su cargo desde GitHub.
+
+**Troubleshooting:** Jaeger puede devolver una traza parcial mientras llegan los
+batches de cada servicio: los tests esperan todos los spans necesarios, no solo
+el del worker. La revisión independiente detectó salida duplicada con un handler
+de consola preexistente: corregida con regresión RED→GREEN, conservando handlers
+de captura/archivo. Starlette emite una advertencia de deprecación de TestClient
+con httpx; no se cambiaron las dependencias congeladas para ocultarla.
 
 ### P4 — Plataforma y entrega 🔲 · Responsable: ________
 
@@ -336,22 +361,24 @@ sobre la infraestructura de compose y con `TELEMETRY=off`:
 
 **Verificado:** _pendiente_
 
-## Fase 3 — Observabilidad encendida (N3) 🔲
+## Fase 3 — Observabilidad encendida (N3) 🔶 (validada localmente; falta integrar)
 
 **Lidera:** P3
 
-- [ ] 🔴 PR de P3 mergeado a `main`; `TELEMETRY=on`
-- [ ] 🔴 Jaeger: **una sola traza** con `api`, `validator` y `worker` (spans del
+- [ ] 🔴 PR de P3 mergeado a `main`; `TELEMETRY=on` (no hacer hasta aprobar las pruebas locales)
+- [x] 🔴 Jaeger: **una sola traza** con `api`, `validator` y `worker` (spans del
       contrato: `POST /pipelines`, `publish pipeline.jobs`,
       `process pipeline.jobs`, `stage build|test|deploy`)
-- [ ] 🔴 El `trace_id` de la respuesta coincide con el de los logs del worker
-      (`docker compose logs worker`) y con el de Jaeger
-- [ ] 🔴 Un pipeline que falla deja el span de `stage test` en rojo y un log
+- [x] 🔴 El `trace_id` de la respuesta coincide con el de los logs del worker
+      y con el de Jaeger (comprobación automática de trace_id y span_id)
+- [x] 🔴 Un pipeline que falla deja el span de `stage test` en rojo y un log
       `level=error`
-- [ ] 🔴 Prometheus: targets `api`, `validator`, `worker` y `rabbitmq` en **UP**
-- [ ] 🔴 `pipeline_jobs_total{status="failed"}` sube cuando falla un pipeline
+- [x] 🔴 Prometheus: targets `api`, `validator`, `worker` y `rabbitmq` en **UP**
+- [x] 🔴 `pipeline_jobs_total{status="failed"}` sube cuando falla un pipeline
 
-**Verificado:** _pendiente_
+**Verificado (23/10):** desde `lab2/`, con el compose complementario levantado:
+`EXPECTED_WORKERS=3 .venv/bin/python -m pytest observability/check_local.py -v -s`
+→ 5 passed. Solo en la rama `lab2/p3`, sin integrar a `main`.
 
 ## Fase 4 — Todo junto (N4) 🔲
 
@@ -416,4 +443,5 @@ Entrega:
 | 22/10 | MaxDCoc (con Claude) | Hito 0: `common/` con el contrato, las transiciones y los dobles (61 tests), 12 ejemplos JSON, `AGENTS.md`, dependencias fijadas y compose de infra levantado y verificado (4 servicios healthy). Todo en la rama `lab2/hito0-contrato` |
 | 22/10 | MaxDCoc (con Claude) | P1: validador (42 tests) y API principal (29 tests) con sus Dockerfiles, probados juntos en una red de Docker con estado en memoria y publisher falso. Rama `lab2/p1-apis`, parte de `lab2/hito0-contrato` |
 | 23/10 | MaxDCoc (con Claude) | P2: cola de RabbitMQ, estado en Redis y worker con sus tests (91 en `common` contra Redis y RabbitMQ reales, 18 en el worker) y su Dockerfile, probados de punta a punta en contenedores junto con P1: flujo completo, fallo controlado, `docker stop` ordenado, `docker kill` con redelivery y 3 workers. Mergeada a `main`. Queda sin hacer la cola de reintento (🟡) |
+| 23/10 | — (rama `lab2/p3`) | P3 implementada y validada localmente: trazas OTLP, contexto AMQP, logs JSON, métricas HTTP, DNS de workers, consultas y compose complementario. 204 tests de regresión + 5 de integración; 30 jobs y escalado 1→3. Cambio mínimo de log en P2 autorizado. Publicación de la rama autorizada; merge a main reservado al usuario en GitHub. |
 |  |  |  |
