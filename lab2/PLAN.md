@@ -296,7 +296,7 @@ Lo que conviene saber (decisiones de diseño):
 - El worker sirve `/health` y `/metrics` con su propio servidor
   (`services/worker/app/http_server.py`): `start_metrics_server` no hace falta para el worker.
 
-### P3 — Observabilidad ✅ (verificada localmente en `lab2/p3`, sin merge) · Responsable: ________
+### P3 — Observabilidad ✅ (mergeada a `main` en el PR #3) · Responsable: ________
 
 - [x] 🔴 `setup_logging`: una línea JSON con `ts, level, service, logger, msg,
       trace_id, span_id` + extras y excepciones; tests de correlación e idempotencia
@@ -354,7 +354,7 @@ con httpx; no se cambiaron las dependencias congeladas para ocultarla.
       **sin puertos publicados en el worker** (si no, `--scale` choca), plugin
       `rabbitmq_prometheus` (**ya viene habilitado** en la imagen 4.3.7, verificado
       en el Hito 0: no hace falta activarlo)
-      _Sin el dashboard. `TELEMETRY=off` literal en api, validator y worker._
+      _Sin el dashboard. Desde el 25/10, `TELEMETRY=on` en api, validator y worker._
 - [x] 🔴 Healthchecks con **`127.0.0.1`, no `localhost`** (aprendido en lab1:
       `localhost` resuelve primero a IPv6 y el contenedor queda unhealthy)
       _Las imágenes `python:3.12-slim` no traen wget: el chequeo usa `urllib` contra
@@ -368,7 +368,8 @@ con httpx; no se cambiaron las dependencias congeladas para ocultarla.
       atajos *Ejecutar OK* / *Forzar fallo en test* / *Lanzar 10*, lista en vivo
       (polling cada 2 s) con enlace *Ver traza en Jaeger*, panel de
       estadísticas, `Dockerfile` + `nginx.conf.template` con proxy `/api`
-      _El enlace a Jaeger muestra `trace_id` null hasta el merge de P3._
+      _El `trace_id` de la API ya es real: el enlace puede armarse como
+      `http://localhost:16686/trace/{trace_id}`._
 - [ ] 🟡 `COLOQUIO.md` (cheat sheet, guion con tiempos, preguntas por rol) y
       `slides/OUTLINE.md` con las 7 diapositivas
 - [ ] 🟡 *(lo toma P1 al terminar su núcleo)* `tests/e2e/test_flow.py` y
@@ -386,13 +387,20 @@ healthy. El worker publica `8000/tcp` solo dentro de la red (sin puerto en el ho
 `docker compose down -v` borró contenedores y la red. `burst --n 30` es el mismo
 comando; no se corrió en esta pasada.
 
-#### Después del merge de P3
+**Verificado (25/10, con P3 en `main`):** `docker compose up --build -d --wait`
+con `TELEMETRY=on`. `demo.py ok` → `202` en 322 ms,
+`trace_id=479871117de9ca3726ba8ed15dd8e463`, traza completa en Jaeger.
+`demo.py fail` → `trace_id=e46c4e4db0f8ceda70f6ed93faa7e29d`, span `stage test`
+con error y el mismo id en el log `level=error` del worker.
+`demo.py scale 3` → `workers=3` y tres targets `worker` en UP, junto con
+`api`, `validator` y `rabbitmq`. El stack quedó levantado.
 
-No hace falta tocar la API, el validador ni el worker: ya llaman a
-`setup_telemetry`, `inject_trace_context` y `extract_trace_context`. Hoy esas
-funciones están vacías, por eso `trace_id` vuelve `null` y Jaeger no muestra el
-pedido. El archivo `observability/prometheus/prometheus.yml` es de P3; no se
-cambió. Orden:
+#### Después del merge de P3 ✅ (25/10)
+
+P3 entró a `main` en el PR #3. `prometheus.yml` ya traía el scrape de api,
+validator, worker (DNS) y RabbitMQ. El compose pasó de `TELEMETRY=off` a
+`TELEMETRY=on` en api, validator y worker, y se reconstruyeron las imágenes.
+La receta que se siguió:
 
 1. En `docker-compose.yml`, en **api**, **validator** y **worker**, pasar
    `TELEMETRY: "off"` a `TELEMETRY: "on"`. Está escrito literal a propósito:
@@ -456,11 +464,12 @@ cambió. Orden:
 
 **Verificado:** _pendiente_
 
-## Fase 3 — Observabilidad encendida (N3) 🔶 (validada localmente; falta integrar)
+## Fase 3 — Observabilidad encendida (N3) ✅
 
 **Lidera:** P3
 
-- [ ] 🔴 PR de P3 mergeado a `main`; `TELEMETRY=on` (no hacer hasta aprobar las pruebas locales)
+- [x] 🔴 PR de P3 mergeado a `main`; `TELEMETRY=on` (no hacer hasta aprobar las pruebas locales)
+      _PR #3 en `main`. El compose de P4 quedó con `TELEMETRY=on` el 25/10._
 - [x] 🔴 Jaeger: **una sola traza** con `api`, `validator` y `worker` (spans del
       contrato: `POST /pipelines`, `publish pipeline.jobs`,
       `process pipeline.jobs`, `stage build|test|deploy`)
@@ -473,7 +482,7 @@ cambió. Orden:
 
 **Verificado (23/10):** desde `lab2/`, con el compose complementario levantado:
 `EXPECTED_WORKERS=3 .venv/bin/python -m pytest observability/check_local.py -v -s`
-→ 5 passed. Solo en la rama `lab2/p3`, sin integrar a `main`.
+→ 5 passed. El 25/10 se repitió sobre el compose de P4, ya en `main`: ver P4.
 
 ## Fase 4 — Todo junto (N4) 🔶
 
@@ -483,11 +492,12 @@ cambió. Orden:
       `docker compose ps` con todo `healthy`, sin pasos manuales
       _Probado en esta copia de trabajo, no en un segundo clon: `up --build -d --wait`
       dejó api, validator, worker, rabbitmq, redis, jaeger y prometheus healthy._
-- [ ] 🔴 `docker compose up -d --scale worker=3` → 3 targets de worker en
+- [x] 🔴 `docker compose up -d --scale worker=3` → 3 targets de worker en
       Prometheus y la cola se vacía ~3 veces más rápido
-      _La mitad de workers ya anda: `python scripts/demo.py scale 3` mostró
-      `workers=3` en `/stats`. Los targets de Prometheus esperan el
-      `prometheus.yml` de P3 (ver «Después del merge de P3» en P4)._
+      _25/10: `python scripts/demo.py scale 3` mostró `workers=3` y Prometheus
+      tenía `worker` up tres veces, más `api`, `validator` y `rabbitmq` up.
+      La comparación de velocidad sigue siendo la del 23/10 en P3: 30 pipelines
+      de 3 etapas × 1 s terminaron en 36,75 s al pasar de 1 a 3 workers._
 - [ ] 🟡 El dashboard apunta al `/api` real (ya no al mock) y funciona
 - [x] 🔴 `docker compose down -v` sin residuos
 
@@ -501,13 +511,19 @@ cambió. Orden:
 La demo de 5 pasos (lo que hay que poder mostrar sin dudar):
 
 - [x] 🔴 **Paso 1:** `POST /pipelines` → `202` con `job_id`
-      _`scripts/demo.py ok`, 23/10: `202` en 340 ms. `trace_id` todavía `null`._
+      _25/10: `202` en 322 ms con `trace_id=479871117de9ca3726ba8ed15dd8e463`._
 - [ ] 🔴 **Paso 2:** el worker tarda varios segundos; mientras tanto la API
       acepta más pedidos; `GET /pipelines/{id}` muestra el avance
-- [ ] 🔴 **Paso 3:** Jaeger muestra el mismo `trace_id` atravesando API,
+- [x] 🔴 **Paso 3:** Jaeger muestra el mismo `trace_id` atravesando API,
       validación y worker (a través de la cola)
-- [ ] 🔴 **Paso 4:** fallo controlado en `test`: log de error, span rojo en
+      _25/10: traza `479871117de9ca3726ba8ed15dd8e463` con spans `POST /pipelines`,
+      `POST /validate`, `publish pipeline.jobs`, `process pipeline.jobs` y
+      `stage build|test|deploy`, servicios api, validator y worker._
+- [x] 🔴 **Paso 4:** fallo controlado en `test`: log de error, span rojo en
       Jaeger y estado `failed`
+      _25/10: `trace_id=e46c4e4db0f8ceda70f6ed93faa7e29d`. El job quedó `failed`,
+      `deploy` no tiene span, `stage test` tiene `error=true` y el log del
+      worker es `level=error` con ese mismo `trace_id`._
 - [ ] 🔴 **Paso 5:** 30 trabajos, crece la cola en RabbitMQ, pasar de 1 a 3
       workers y comparar las métricas antes y después
 
@@ -550,3 +566,4 @@ Entrega:
 | 23/10 | MaxDCoc (con Claude) | P2: cola de RabbitMQ, estado en Redis y worker con sus tests (91 en `common` contra Redis y RabbitMQ reales, 18 en el worker) y su Dockerfile, probados de punta a punta en contenedores junto con P1: flujo completo, fallo controlado, `docker stop` ordenado, `docker kill` con redelivery y 3 workers. Mergeada a `main`. La cola de reintento (🟡) se hizo después (fila siguiente) |
 | 23/10 | MaxDCoc (con Claude) | P2: cola de reintento (`pipeline.jobs.retry`, espera de 5 s, hasta `MAX_ATTEMPTS` intentos y después la DLQ con el job en `failed`). 136 tests en `common` y 27 en el worker, mutaciones 25/26 (1 equivalente) y prueba de punta a punta con el worker en contenedor. Rama `lab2/p2-reintento`, mergeada a `main` |
 | 23/10 | — | P4 sin P3: api, validator y worker en el compose (`TELEMETRY=off`), `scripts/demo.py` y `lab2/README.md`. Verificado `ok`, `fail`, `scale 3`, `burst --n 3` y `down -v`. En P4 quedó el procedimiento para encender trazas y Prometheus al mergear P3 |
+| 25/10 | — | P3 ya estaba en `main` (PR #3). P4 encendió `TELEMETRY=on` en el compose y verificó la traza en Jaeger, el log de error del worker y 3 targets `worker` en Prometheus |
