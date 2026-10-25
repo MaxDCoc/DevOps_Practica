@@ -2,7 +2,7 @@
 
 Mini plataforma CI/CD simulada: la API acepta un pipeline, lo valida, lo deja en RabbitMQ y un worker simula build, test y deploy. El estado queda en Redis.
 
-Jaeger y Prometheus están levantados con el resto. Todavía no muestran el recorrido de un pedido: las trazas y el scrape de `api`, `validator` y `worker` los enciende P3. Hasta ese merge el compose fuerza `TELEMETRY=off`. Los pasos para prenderlo están en [PLAN.md](PLAN.md), sección «Después del merge de P3».
+Con el compose, `TELEMETRY=on`: cada `202` trae un `trace_id` que se ve en Jaeger, y Prometheus scrapea `api`, `validator`, `worker` y RabbitMQ.
 
 ## Levantar
 
@@ -53,4 +53,4 @@ curl -s -X POST http://localhost:8000/pipelines \
   -d "{\"project\":\"shop-frontend\",\"branch\":\"main\",\"config\":{\"stages\":[\"build\",\"test\",\"deploy\"],\"stage_seconds\":3,\"fail_at\":null}}"
 ```
 
-La respuesta trae un `job_id`. El avance se consulta con `GET /pipelines/{job_id}`. `trace_id` vuelve `null` hasta que P3 reemplace los stubs de observabilidad.
+La respuesta trae un `job_id` y un `trace_id`. El avance se consulta con `GET /pipelines/{job_id}`. La misma traza está en Jaeger: `http://localhost:16686/trace/{trace_id}`.

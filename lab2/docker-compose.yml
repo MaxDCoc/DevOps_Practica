@@ -1,6 +1,5 @@
-# Plataforma completa salvo el dashboard (P4). Jaeger y Prometheus están levantados,
-# pero las trazas y el scrape de api/validator/worker los enciende P3.
-# TELEMETRY=off es literal a propósito: al mergear P3, cambiarlo a "on" en api, validator y worker.
+# Plataforma completa salvo el dashboard (P4). P3 ya está en main: TELEMETRY=on
+# exporta trazas a Jaeger y Prometheus scrapea api, validator, worker y rabbitmq.
 # Funciona sin archivo .env: todos los valores tienen un default.
 name: deployflow
 
@@ -69,7 +68,7 @@ services:
       context: .
       dockerfile: services/validator/Dockerfile
     environment:
-      TELEMETRY: "off"  # P3: cambiar a "on"
+      TELEMETRY: "on"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       LOG_LEVEL: INFO
       VALIDATOR_LATENCY_MS: "150"
@@ -85,7 +84,7 @@ services:
     environment:
       STATE_BACKEND: redis
       PUBLISHER: rabbit
-      TELEMETRY: "off"  # P3: cambiar a "on"
+      TELEMETRY: "on"
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-deployflow}:${RABBITMQ_PASS:-deployflow}@rabbitmq:5672/
       REDIS_URL: redis://redis:6379/0
       VALIDATOR_URL: http://validator:8000
@@ -109,7 +108,7 @@ services:
       dockerfile: services/worker/Dockerfile
     environment:
       STATE_BACKEND: redis
-      TELEMETRY: "off"  # P3: cambiar a "on"
+      TELEMETRY: "on"
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-deployflow}:${RABBITMQ_PASS:-deployflow}@rabbitmq:5672/
       REDIS_URL: redis://redis:6379/0
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
