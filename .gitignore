@@ -1,0 +1,15 @@
+# Cortex — estructura local de cada máquina (NO se versiona)
+.cortex/
+# Patrones explícitos: cortex doctor los busca literalmente en este archivo
+.cortex/memory/
+.cortex/sessions/
+.cortex/logs/
+.cortex/session.lock
+.cortex/vault/sessions/
+.cortex/vault/.cortex_index.json
+.cortex/vault-enterprise/.cortex_index.json
+
+# Config local de opencode (rutas absolutas de esta PC)
+opencode.json
+opencode.jsonc
+.opencode/
