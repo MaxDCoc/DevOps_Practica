@@ -1,6 +1,6 @@
-# Plataforma completa salvo el dashboard (P4). Jaeger y Prometheus están levantados,
-# pero las trazas y el scrape de api/validator/worker los enciende P3.
-# TELEMETRY=off es literal a propósito: al mergear P3, cambiarlo a "on" en api, validator y worker.
+# Plataforma completa: infraestructura, api, validator, worker y dashboard (P4).
+# P3 ya está en main, así que TELEMETRY=on en api, validator y worker: las trazas van a
+# Jaeger y Prometheus scrapea los tres servicios (observability/prometheus/prometheus.yml).
 # Funciona sin archivo .env: todos los valores tienen un default.
 name: deployflow
 
@@ -69,7 +69,7 @@ services:
       context: .
       dockerfile: services/validator/Dockerfile
     environment:
-      TELEMETRY: "off"  # P3: cambiar a "on"
+      TELEMETRY: "on"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       LOG_LEVEL: INFO
       VALIDATOR_LATENCY_MS: "150"
@@ -85,7 +85,7 @@ services:
     environment:
       STATE_BACKEND: redis
       PUBLISHER: rabbit
-      TELEMETRY: "off"  # P3: cambiar a "on"
+      TELEMETRY: "on"
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-deployflow}:${RABBITMQ_PASS:-deployflow}@rabbitmq:5672/
       REDIS_URL: redis://redis:6379/0
       VALIDATOR_URL: http://validator:8000
@@ -109,7 +109,7 @@ services:
       dockerfile: services/worker/Dockerfile
     environment:
       STATE_BACKEND: redis
-      TELEMETRY: "off"  # P3: cambiar a "on"
+      TELEMETRY: "on"
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-deployflow}:${RABBITMQ_PASS:-deployflow}@rabbitmq:5672/
       REDIS_URL: redis://redis:6379/0
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
@@ -127,3 +127,21 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck: *app-healthcheck
+
+  web:
+    build:
+      context: services/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"  # el dashboard; nginx reenvía /api/ a api:8000 quitando el prefijo
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      # nginx:alpine trae wget de busybox. 127.0.0.1 y no localhost (ver AGENTS.md).
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s

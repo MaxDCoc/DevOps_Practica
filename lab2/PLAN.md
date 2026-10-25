@@ -296,7 +296,7 @@ Lo que conviene saber (decisiones de diseño):
 - El worker sirve `/health` y `/metrics` con su propio servidor
   (`services/worker/app/http_server.py`): `start_metrics_server` no hace falta para el worker.
 
-### P3 — Observabilidad ✅ (verificada localmente en `lab2/p3`, sin merge) · Responsable: ________
+### P3 — Observabilidad ✅ (mergeada en `main`; integrada en el compose el 25/10) · Responsable: ________
 
 - [x] 🔴 `setup_logging`: una línea JSON con `ts, level, service, logger, msg,
       trace_id, span_id` + extras y excepciones; tests de correlación e idempotencia
@@ -354,7 +354,8 @@ con httpx; no se cambiaron las dependencias congeladas para ocultarla.
       **sin puertos publicados en el worker** (si no, `--scale` choca), plugin
       `rabbitmq_prometheus` (**ya viene habilitado** en la imagen 4.3.7, verificado
       en el Hito 0: no hace falta activarlo)
-      _Sin el dashboard. `TELEMETRY=off` literal en api, validator y worker._
+      _Con el servicio `web`. `TELEMETRY: "on"` en api, validator y worker desde
+      la integración de P3 (25/10); `prometheus.yml` ya es el de P3._
 - [x] 🔴 Healthchecks con **`127.0.0.1`, no `localhost`** (aprendido en lab1:
       `localhost` resuelve primero a IPv6 y el contenedor queda unhealthy)
       _Las imágenes `python:3.12-slim` no traen wget: el chequeo usa `urllib` contra
@@ -363,12 +364,13 @@ con httpx; no se cambiaron las dependencias congeladas para ocultarla.
 - [x] 🔴 `README.md`: cómo levantar, endpoints con ejemplos, URLs de las UIs
       (RabbitMQ `:15672`, Jaeger `:16686`, Prometheus `:9090`), cómo reproducir
       éxito, fallo y escalado, `docker compose down -v`
-- [ ] 🟡 **Dashboard** en `services/web/` (Vite + React + TS, patrón de
+- [x] 🟡 **Dashboard** en `services/web/` (Vite + React + TS, patrón de
       `lab1/web`): servidor de mocks (`npm run dev:mock`), formulario con
       atajos *Ejecutar OK* / *Forzar fallo en test* / *Lanzar 10*, lista en vivo
       (polling cada 2 s) con enlace *Ver traza en Jaeger*, panel de
       estadísticas, `Dockerfile` + `nginx.conf.template` con proxy `/api`
-      _El enlace a Jaeger muestra `trace_id` null hasta el merge de P3._
+      _Probado contra el contenedor: `202`, traza real, `fail_at` y `/stats`.
+      El enlace a Jaeger arma `/trace/<trace_id>`; ya no hay `trace_id` null._
 - [ ] 🟡 `COLOQUIO.md` (cheat sheet, guion con tiempos, preguntas por rol) y
       `slides/OUTLINE.md` con las 7 diapositivas
 - [ ] 🟡 *(lo toma P1 al terminar su núcleo)* `tests/e2e/test_flow.py` y
@@ -386,13 +388,12 @@ healthy. El worker publica `8000/tcp` solo dentro de la red (sin puerto en el ho
 `docker compose down -v` borró contenedores y la red. `burst --n 30` es el mismo
 comando; no se corrió en esta pasada.
 
-#### Después del merge de P3
+#### Después del merge de P3 ✅ (hecho el 25/10)
 
-No hace falta tocar la API, el validador ni el worker: ya llaman a
-`setup_telemetry`, `inject_trace_context` y `extract_trace_context`. Hoy esas
-funciones están vacías, por eso `trace_id` vuelve `null` y Jaeger no muestra el
-pedido. El archivo `observability/prometheus/prometheus.yml` es de P3; no se
-cambió. Orden:
+Ya está aplicado en `main`: los tres servicios quedaron con `TELEMETRY: "on"`, el
+`prometheus.yml` es el de P3 y `docker compose up --build -d --wait` deja los 8 servicios
+healthy. Queda como registro de lo que había que tocar; los pasos 1 a 4 están verificados,
+el 5 (tres workers) sigue pendiente.
 
 1. En `docker-compose.yml`, en **api**, **validator** y **worker**, pasar
    `TELEMETRY: "off"` a `TELEMETRY: "on"`. Está escrito literal a propósito:
@@ -435,9 +436,9 @@ cambió. Orden:
 5. `python scripts/demo.py scale 3` y, en Prometheus
    (`http://localhost:9090/targets`), tres targets `worker` en UP más `api`,
    `validator` y `rabbitmq`.
-6. Recién ahí tildar el paso 3 de la Fase 5 y la casilla de la Fase 4 que pide
-   los targets de Prometheus. El dashboard, el coloquio y el CI siguen en
-   sus casillas amarillas.
+6. El paso 3 de la Fase 5 ya se puede dar por bueno (202 + traza completa verificados);
+   la casilla de los tres targets de la Fase 4 sigue pendiente. El coloquio y el CI
+   siguen en sus casillas amarillas.
 
 ## Fase 2 — Núcleo asíncrono: API ↔ cola ↔ worker (N2) 🔲
 
@@ -456,11 +457,12 @@ cambió. Orden:
 
 **Verificado:** _pendiente_
 
-## Fase 3 — Observabilidad encendida (N3) 🔶 (validada localmente; falta integrar)
+## Fase 3 — Observabilidad encendida (N3) ✅ (integrada en `main` y verificada con el compose real)
 
 **Lidera:** P3
 
-- [ ] 🔴 PR de P3 mergeado a `main`; `TELEMETRY=on` (no hacer hasta aprobar las pruebas locales)
+- [x] 🔴 PR de P3 mergeado a `main`; `TELEMETRY=on`
+      _PR #3 (`a2bb1c5`, código en `97b19e6`, 24/10). El compose se encendió el 25/10._
 - [x] 🔴 Jaeger: **una sola traza** con `api`, `validator` y `worker` (spans del
       contrato: `POST /pipelines`, `publish pipeline.jobs`,
       `process pipeline.jobs`, `stage build|test|deploy`)
@@ -475,6 +477,12 @@ cambió. Orden:
 `EXPECTED_WORKERS=3 .venv/bin/python -m pytest observability/check_local.py -v -s`
 → 5 passed. Solo en la rama `lab2/p3`, sin integrar a `main`.
 
+**Verificado (25/10, `main` con el dashboard):** `docker compose up --build -d --wait` dejó los
+8 servicios healthy. `POST /pipelines` a través de nginx → `202` en menos de 1 s, traza
+`9c74ee18eb0a3c13a09ef54f35db1a33` con 5 spans (`api`, `validator`, `worker`) y job `succeeded`;
+Prometheus con `up{job="worker"}=1`. `fail_at: "test"` → `failed`, `test: failed` y `deploy: pending`.
+Queda repetir el escalado a 3 workers en esta configuración.
+
 ## Fase 4 — Todo junto (N4) 🔶
 
 **Lidera:** P4
@@ -488,8 +496,18 @@ cambió. Orden:
       _La mitad de workers ya anda: `python scripts/demo.py scale 3` mostró
       `workers=3` en `/stats`. Los targets de Prometheus esperan el
       `prometheus.yml` de P3 (ver «Después del merge de P3» en P4)._
-- [ ] 🟡 El dashboard apunta al `/api` real (ya no al mock) y funciona
+- [x] 🟡 El dashboard apunta al `/api` real (ya no al mock) y funciona
+      _Probado el 25/10 con los 8 servicios arriba: sirve el build, proxya `/api/*`
+      a `api:8000` y muestra los pipelines que crea el formulario._
 - [x] 🔴 `docker compose down -v` sin residuos
+
+**Verificado (25/10, con el dashboard):** `http://localhost:3000` responde `200` con
+`text/html; charset=utf-8`; `GET /api/health`, `/api/stats` y `/api/pipelines?limit=5`
+llegan a la API por nginx; `POST /api/pipelines` → `202` con `trace_id` de 32 hex y el
+enlace a Jaeger devuelve `200` para ese id. El primer intento dejó `web` en
+`Restarting`: `15-local-resolvers.envsh` no exporta `NGINX_LOCAL_RESOLVERS` salvo que
+`NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1`, y `envsubst` dejaba el `${...}` literal en el
+`resolver`; se agregó el `ENV` en el `Dockerfile`.
 
 **Verificado (23/10):** ver P4. `down -v` eliminó los contenedores y la red
 `deployflow_default`.
@@ -550,3 +568,4 @@ Entrega:
 | 23/10 | MaxDCoc (con Claude) | P2: cola de RabbitMQ, estado en Redis y worker con sus tests (91 en `common` contra Redis y RabbitMQ reales, 18 en el worker) y su Dockerfile, probados de punta a punta en contenedores junto con P1: flujo completo, fallo controlado, `docker stop` ordenado, `docker kill` con redelivery y 3 workers. Mergeada a `main`. La cola de reintento (🟡) se hizo después (fila siguiente) |
 | 23/10 | MaxDCoc (con Claude) | P2: cola de reintento (`pipeline.jobs.retry`, espera de 5 s, hasta `MAX_ATTEMPTS` intentos y después la DLQ con el job en `failed`). 136 tests en `common` y 27 en el worker, mutaciones 25/26 (1 equivalente) y prueba de punta a punta con el worker en contenedor. Rama `lab2/p2-reintento`, mergeada a `main` |
 | 23/10 | — | P4 sin P3: api, validator y worker en el compose (`TELEMETRY=off`), `scripts/demo.py` y `lab2/README.md`. Verificado `ok`, `fail`, `scale 3`, `burst --n 3` y `down -v`. En P4 quedó el procedimiento para encender trazas y Prometheus al mergear P3 |
+| 25/10 | — (P4, rama `lab2/p4-front-plataforma`) | P4: dashboard en `services/web` (Vite + React + TS, mocks del contrato, `Dockerfile` + nginx con proxy `/api`) y `TELEMETRY: "on"` en api, validator y worker. Verificado con los 8 servicios healthy: `202` + traza de 5 spans en Jaeger, `fail_at: "test"` → `failed`, `/stats` y `/api/*` por nginx, target `worker` UP. Corregido `NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1` (el `resolver` quedaba literal) |
