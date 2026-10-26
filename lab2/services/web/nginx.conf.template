@@ -1,0 +1,19 @@
+server {
+    listen 80;
+
+    # API_UPSTREAM y JAEGER_UPSTREAM los define docker-compose (direcciones internas de la red).
+    location /api/ {
+        proxy_pass ${API_UPSTREAM}/;
+        proxy_set_header Host $host;
+    }
+
+    location /jaeger/ {
+        proxy_pass ${JAEGER_UPSTREAM}/;
+        proxy_set_header Host $host;
+    }
+
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri /index.html;
+    }
+}

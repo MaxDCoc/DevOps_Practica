@@ -1,4 +1,4 @@
-# Plataforma completa salvo el dashboard (P4). P3 ya está en main: TELEMETRY=on
+# Plataforma completa con el dashboard de la demo (P4). P3 ya está en main: TELEMETRY=on
 # exporta trazas a Jaeger y Prometheus scrapea api, validator, worker y rabbitmq.
 # Funciona sin archivo .env: todos los valores tienen un default.
 name: deployflow
@@ -126,3 +126,25 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck: *app-healthcheck
+
+  web:
+    # Dashboard de la demo (React + nginx). nginx hace de proxy de /api y /jaeger.
+    build:
+      context: services/web
+    environment:
+      API_UPSTREAM: http://api:8000
+      JAEGER_UPSTREAM: http://jaeger:16686
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      # nginx:alpine trae wget (busybox). 127.0.0.1 y no localhost, como en el resto.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5

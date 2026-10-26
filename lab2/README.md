@@ -13,7 +13,7 @@ docker compose up --build -d
 docker compose ps
 ```
 
-Hay que esperar a que los siete servicios queden `healthy`. Bajar todo y borrar los datos:
+Hay que esperar a que los ocho servicios queden `healthy` (el último es `web`, el dashboard). Bajar todo y borrar los datos:
 
 ```bash
 docker compose down -v
@@ -21,7 +21,9 @@ docker compose down -v
 
 ## Demo
 
-Con el compose arriba:
+La forma más visual es el dashboard: **http://localhost:3000**. Muestra cada mensaje viajando entre los servicios, explica cada paso y trae la guía de los 5 pasos de la demo (detalles en [`services/web/README.md`](services/web/README.md)). Si no hay Docker, el mismo dashboard tiene un modo simulado.
+
+Desde la terminal, con el compose arriba:
 
 ```bash
 python scripts/demo.py ok
@@ -39,6 +41,7 @@ python scripts/demo.py scale 3
 
 | Qué | Dónde |
 |---|---|
+| Dashboard de la demo | http://localhost:3000 |
 | API y Swagger | http://localhost:8000/docs |
 | Validador y Swagger | http://localhost:8001/docs |
 | Consola de RabbitMQ | http://localhost:15672 (`deployflow` / `deployflow`) |

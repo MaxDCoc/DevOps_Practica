@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Observabilidad</title>
+<style>
+  :root { color-scheme:dark; --bg:#0c111a; --ink:#b8c8db; --cyan:#6edcf4; --violet:#baa5ff; --green:#7ce4b3; --red:#ff7c83; --amber:#efbc72; }
+  * { box-sizing:border-box; }
+  html,body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--bg); }
+  body { background:radial-gradient(ellipse at 50% 25%,#162131 0%,#0c111a 72%); }
+  main { width:100%; height:100%; display:grid; place-items:center; }
+  #scene { display:block; width:100%; height:100%; max-width:1800px; }
+  .wire { fill:none; stroke:#40516a; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  .wire.secondary { stroke:#34445b; stroke-dasharray:4 7; stroke-width:1.1; }
+  .wire.telemetry { stroke:var(--wire-color); stroke-width:1.9; opacity:.42; }
+  .wire.telemetry-trace { stroke-dasharray:7 5; }
+  .wire.telemetry-log { stroke-dasharray:1 6; }
+  .wire.telemetry-metric { stroke-dasharray:12 4 2 4; }
+  .node .shell { fill:#131e2c; stroke:#42536b; stroke-width:1.4; }
+  .node .icon { color:#b8c8db; }
+  .node .halo { opacity:0; fill:none; stroke:var(--node-color,var(--cyan)); stroke-width:7; }
+  .node.is-active .shell { stroke:var(--node-color,var(--cyan)); fill:#192b3b; }
+  .node.is-active .icon { color:var(--node-color,var(--cyan)); }
+  .node.is-active .halo { opacity:.08; }
+  .node.is-done .shell { stroke:var(--green); }
+  .node.is-done .icon { color:var(--green); }
+  .node.is-error .shell { stroke:var(--red); fill:#30202d; }
+  .node.is-error .icon { color:var(--red); }
+  .node.is-blocked .shell { stroke:#344054; stroke-dasharray:4 5; fill:#111925; }
+  .node.is-blocked .icon { opacity:.24; }
+  .otel { color:var(--amber); opacity:.45; }
+  .node.is-active .otel { opacity:1; }
+  .status { opacity:0; }
+  .is-done .done-status,.is-error .error-status,.is-blocked .blocked-status { opacity:1; }
+  .panel { fill:#101925; stroke:#314159; stroke-width:1; }
+  .panel-rule { stroke:#28374b; stroke-width:1; }
+  .trace-bar { fill:var(--trace-color); rx:2; }
+  .trace-bar.is-error { fill:var(--red); }
+  .trace-stem { fill:none; stroke:#3d526b; stroke-width:1; }
+  .panel-rule,#trace-view > path,#trace-view > circle,#metric-view > g[fill="none"] { pointer-events:none; }
+  .packet { pointer-events:none; }
+  .packet-trail { opacity:.18; }
+  .log-row .log-line { stroke:#53647b; stroke-width:3; stroke-linecap:round; }
+  .log-row.is-error .log-line { stroke:#c26d7e; }
+  .log-row.is-error .log-bg { fill:#ff7c8310; }
+  .queue-slot { fill:#1c293a; stroke:#3a4b61; }
+  .queue-slot.occupied { stroke:var(--violet); fill:#baa5ff28; }
+  .metric-pip { fill:#25354a; }
+  #metric-success .filled { fill:var(--green); }
+  #metric-failures .filled { fill:var(--red); }
+  .controls { position:fixed; bottom:20px; right:24px; display:flex; gap:6px; align-items:center; }
+  button { border:1px solid #34445a; border-radius:50%; width:42px; height:42px; padding:11px; color:#b8c8db; background:#111c2b; cursor:pointer; display:grid; place-items:center; }
+  button:hover { background:#1e3045; color:#fff; }
+  button:focus-visible,input:focus-visible { outline:2px solid var(--cyan); outline-offset:5px; }
+  button svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  input[type=range] { position:fixed; left:32px; bottom:38px; width:calc(100% - 228px); height:4px; margin:0; appearance:none; border:0; border-radius:4px; cursor:pointer; background:#29384c; accent-color:var(--cyan); }
+  input[type=range]::-webkit-slider-thumb { appearance:none; width:10px; height:10px; border-radius:50%; background:#a9cbdc; }
+  input[type=range]::-moz-range-thumb { width:10px; height:10px; border:0; border-radius:50%; background:#a9cbdc; }
+  @media(max-width:600px) { .controls { bottom:18px; right:14px; } input[type=range] { left:18px; width:calc(100% - 188px); bottom:38px; } button { width:38px; height:38px; padding:10px; } }
+  .inspectable { cursor:help; }
+  .inspectable:focus-visible { outline:2px solid var(--cyan); outline-offset:5px; }
+  .node.is-selected .shell { stroke:#e4f4ff; stroke-width:2; }
+  .wire { pointer-events:none; }
+  .wire-hit { fill:none; stroke:transparent; stroke-width:18; pointer-events:stroke; cursor:help; }
+  .wire-hit:hover,.wire-hit.is-selected { stroke:#b8dbff35; stroke-width:10; }
+  .packet { pointer-events:all; }
+  .packet-hit { fill:transparent; pointer-events:all; }
+  .packet .packet-trail,.packet rect { pointer-events:none; }
+  .packet.is-selected .packet-trail { opacity:.65; }
+  .trace-bar { stroke:transparent; stroke-width:4; pointer-events:all; }
+  .trace-bar:hover,.trace-bar.is-selected { stroke:#e9f6ff; stroke-width:1.5; }
+  .log-row:hover .log-bg,.log-row.is-selected .log-bg { fill:#b8dfff15; }
+  .metric-hit { fill:transparent; pointer-events:all; }
+  .metric-hit:hover,.metric-hit.is-selected { fill:#9bbedf0a; stroke:#748da540; }
+  #metric-success.is-selected,#metric-failures.is-selected { filter:drop-shadow(0 0 5px #b9d9ff66); }
+  .controls { z-index:20; }
+  #speed { height:42px; border:1px solid #34445a; border-radius:20px; padding:0 10px; background:#111c2b; color:#d5e5f5; font:13px ui-monospace,monospace; cursor:pointer; }
+  #speed:focus-visible { outline:2px solid var(--cyan); outline-offset:4px; }
+  input[type=range] { width:calc(100% - 320px); }
+  #inspector { --detail-color:var(--cyan); position:fixed; z-index:30; top:18px; right:18px; width:360px; max-height:calc(100dvh - 106px); overflow:auto; border:1px solid #536783; border-top:2px solid var(--detail-color); border-radius:14px; background:#111c2bf5; box-shadow:0 20px 80px #0008; padding:20px; color:#cedbea; font:13px/1.55 system-ui,sans-serif; scrollbar-width:thin; scrollbar-color:#4b607b #152235; }
+  #inspector.at-left { right:auto; left:18px; }
+  #inspector[hidden] { display:none; }
+  #inspector.is-preview { padding:12px 14px; max-height:150px; }
+  #inspector.is-preview #inspect-title { font-size:14px; }
+  #inspector.is-preview #inspect-summary,
+  #inspector.is-preview #inspect-fields,
+  #inspector.is-preview #inspect-payload,
+  #inspector.is-preview #inspect-mode,
+  #inspector.is-preview .simulation-note { display:none; }
+  .inspector-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  #inspect-category { display:block; margin-bottom:5px; color:var(--detail-color); font:10px/1.4 ui-monospace,monospace; letter-spacing:.1em; }
+  #inspect-title { margin:0; color:#f1f6fc; font-size:18px; line-height:1.3; }
+  #inspect-close { flex-shrink:0; width:32px; height:32px; padding:7px; }
+  #inspect-summary { margin:15px 0; }
+  #inspect-fields { margin:0; display:grid; grid-template-columns:1fr; gap:3px; }
+  #inspect-fields dt { color:#8cabc8; font-size:11px; margin-top:8px; }
+  #inspect-fields dd { margin:0; color:#e4edf8; overflow-wrap:anywhere; }
+  #inspect-payload { padding:12px; margin:16px 0 0; max-height:235px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; border:1px solid #304259; border-radius:9px; background:#0b1420; color:#b8dbed; font:11px/1.65 ui-monospace,monospace; }
+  #inspect-mode { margin:16px 0 4px; color:var(--detail-color); font-size:11px; }
+  .simulation-note { display:block; color:#9badc1; font-size:10px; }
+  .is-paused .node * { transition:none; }
+  @media(max-width:600px) {
+    input[type=range] { width:calc(100% - 260px); }
+    #speed { height:38px; padding:0 7px; font-size:12px; }
+    #inspector,#inspector.at-left { top:auto; left:12px; right:12px; bottom:82px; width:auto; max-height:48dvh; padding:16px; }
+    #inspect-close { width:38px; height:38px; }
+  }
+
+  @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; } }
+</style>
+</head>
+<body>
+<main>
+<svg id="scene" viewBox="0 0 1440 900" role="group" aria-label="Simulación interactiva de un pedido exitoso y otro fallido: API, validador, cola y worker; trazas, métricas y logs correlacionados. Los colores identifican cada recorrido.">
+<defs>
+  <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".7" fill="#8ba3c0" opacity=".13"/></pattern>
+  <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="m1 1 5 3-5 3" fill="none" stroke="#647c98" stroke-width="1.2"/></marker>
+  <marker id="arrow-trace" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="m1 1 5 3-5 3" fill="none" stroke="#6edcf4" stroke-width="1.3"/></marker>
+  <marker id="arrow-log" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="m1 1 5 3-5 3" fill="none" stroke="#efbc72" stroke-width="1.3"/></marker>
+  <marker id="arrow-metric" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="m1 1 5 3-5 3" fill="none" stroke="#b9a3ff" stroke-width="1.3"/></marker>
+  <symbol id="i-browser" viewBox="-24 -24 48 48"><rect x="-22" y="-18" width="44" height="36" rx="5"/><path d="M-22-7h44M-13-12h1m5 0h1M-8 1l-5 4 5 4m16-8 5 4-5 4M3-1-2 12"/></symbol>
+  <symbol id="i-api" viewBox="-24 -24 48 48"><rect x="-21" y="-21" width="42" height="42" rx="8"/><path d="M-10-10c-5 0-3 9-7 10 4 1 2 10 7 10m20-20c5 0 3 9 7 10-4 1-2 10-7 10"/><circle cx="0" cy="-7" r="1"/><circle cx="0" cy="0" r="1"/><circle cx="0" cy="7" r="1"/></symbol>
+  <symbol id="i-shield" viewBox="-24 -24 48 48"><path d="M0-22 18-15v15c0 11-18 22-18 22S-18 11-18 0v-15Z"/><path d="m-8 0 6 6L10-7"/></symbol>
+  <symbol id="i-rabbit" viewBox="-24 -24 48 48"><path d="M-17-21h9v16h7v-16h9v16h11v24h-36Z" fill="currentColor" stroke="none"/><rect x="4" y="4" width="7" height="7" rx="1" stroke="#131e2c" fill="#131e2c"/></symbol>
+  <symbol id="i-worker" viewBox="-24 -24 48 48"><path d="m0-22 19 11v22L0 22-19 11v-22Z"/><path d="m-8-6-7 6 7 6m16-12 7 6-7 6M3-10-3 10"/></symbol>
+  <symbol id="i-build" viewBox="-24 -24 48 48"><path d="m-16 18 21-23m-2-10 5-5 13 13-5 5-5-5-6 6-7-7 6-6Z"/><path d="m-18 13 5 5"/></symbol>
+  <symbol id="i-test" viewBox="-24 -24 48 48"><path d="M-8-21h16M-5-21v15L-18 15q-3 6 4 6h28q7 0 4-6L5-6v-15M-12 5h24"/><circle cx="-3" cy="12" r="1"/><circle cx="5" cy="16" r="1"/></symbol>
+  <symbol id="i-deploy" viewBox="-24 -24 48 48"><path d="M-5 12-13 4C-8-10 6-21 21-21c0 15-11 29-26 33ZM-13 4h-8l7-12 10-2M-5 12v9l12-7 2-10M-13 14l-6 6m4-9-6 2m11 2-2 6"/><circle cx="8" cy="-8" r="4"/></symbol>
+  <symbol id="i-db" viewBox="-24 -24 48 48"><ellipse cx="0" cy="-14" rx="20" ry="7"/><path d="M-20-14v28c0 9 40 9 40 0v-28M-20 0c0 9 40 9 40 0"/></symbol>
+  <symbol id="i-trace" viewBox="-24 -24 48 48"><path d="M-18-17h26m-26 0v34m0-23h16m-16 11h29m-29 12h20"/><circle cx="12" cy="-17" r="4"/><circle cx="3" cy="-6" r="4"/><circle cx="16" cy="5" r="4"/><circle cx="6" cy="17" r="4"/></symbol>
+  <symbol id="i-prometheus" viewBox="-24 -24 48 48"><path d="M-16 9c-12-15 8-19 4-30 11 7 5 13 10 17 9-7 1-12 11-18-2 12 17 18 9 31Z" fill="currentColor" stroke="none"/><path d="M-18 14h36M-11 20h22" stroke-width="3"/></symbol>
+  <symbol id="i-logs" viewBox="-24 -24 48 48"><rect x="-22" y="-20" width="44" height="40" rx="5"/><path d="m-13-8 5 4-5 4m12 0h12M-13 9h24"/></symbol>
+  <symbol id="i-check" viewBox="-12 -12 24 24"><path d="m-7 0 5 5 10-11"/></symbol>
+  <symbol id="i-cross" viewBox="-12 -12 24 24"><path d="m-6-6 12 12M6-6-6 6"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 20 20"><path d="M7 4v12M13 4v12"/></symbol>
+  <symbol id="i-play" viewBox="0 0 20 20"><path d="m6 3 10 7-10 7Z"/></symbol>
+</defs>
+<rect x="40" y="48" width="1360" height="500" fill="url(#grid)" opacity=".65"/>
+<path d="M64 566h1312" stroke="#34445b" opacity=".45"/>
+<g id="wires"></g>
+<g id="nodes"></g>
+<g id="queue-slots"></g>
+<g id="panels">
+  <rect id="panel-traces" class="panel" x="64" y="600" width="400" height="245" rx="18"/>
+  <rect id="panel-metrics" class="panel" x="520" y="600" width="400" height="245" rx="18"/>
+  <rect id="panel-logs" class="panel" x="976" y="600" width="400" height="245" rx="18"/>
+  <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <use href="#i-trace" x="86" y="616" width="29" height="29" color="#6edcf4"/>
+    <use href="#i-prometheus" x="542" y="616" width="29" height="29" color="#f0a874"/>
+    <use href="#i-logs" x="998" y="616" width="29" height="29" color="#efbc72"/>
+  </g>
+  <g class="panel-rule"><path d="M88 654h352M544 654h352M1000 654h352"/></g>
+  <g id="trace-view"></g>
+  <g id="metric-view">
+    <path d="M548 675v78h344M548 714h344M634 675v78M720 675v78M806 675v78" fill="none" stroke="#29384b" stroke-width="1"/>
+    <path id="requests-area" fill="#6edcf40c"/>
+    <path id="requests-line" fill="none" stroke="#6edcf4" stroke-width="2" stroke-linejoin="round"/>
+    <path id="failures-line" fill="none" stroke="#ff7c83" stroke-width="2" stroke-linejoin="round"/>
+    <g id="histogram"></g>
+    <g id="metric-success"></g>
+    <g id="metric-failures"></g>
+    <g fill="none" stroke-width="1.5"><use href="#i-check" x="742" y="772" width="16" height="16" stroke="#7ce4b3"/><use href="#i-cross" x="824" y="772" width="16" height="16" stroke="#ff7c83"/></g>
+    <g id="scrape-status"><circle id="scrape-light" cx="880" cy="631" r="4" fill="#535e77"/><circle cx="880" cy="631" r="14" fill="transparent"/></g>
+  </g>
+  <g id="log-view"></g>
+</g>
+<g id="packets"></g>
+</svg>
+</main>
+<input id="timeline" type="range" min="0" max="26" step="0.01" value="0" aria-label="Recorrido de la simulación">
+<div class="controls" role="group" aria-label="Controles de la simulación">
+  <select id="speed" aria-label="Velocidad de reproducción"><option value="0.1">0,1×</option><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option value="0.75">0,75×</option><option value="1" selected>1×</option></select>
+  <button id="restart" aria-label="Reiniciar"><svg viewBox="0 0 20 20"><path d="M4 7a7 7 0 1 1-1 5M4 2v5h5"/></svg></button>
+  <button id="pause" aria-label="Pausar" aria-pressed="false"><svg viewBox="0 0 20 20"><use id="pause-icon" href="#i-pause"/></svg></button>
+  <button id="fullscreen" aria-label="Pantalla completa"><svg viewBox="0 0 20 20"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></svg></button>
+</div>
+<aside id="inspector" role="region" aria-labelledby="inspect-title" hidden>
+  <div class="inspector-heading">
+    <div><span id="inspect-category"></span><h2 id="inspect-title"></h2></div>
+    <button id="inspect-close" aria-label="Cerrar inspector"><svg viewBox="0 0 20 20"><path d="m5 5 10 10M15 5 5 15"/></svg></button>
+  </div>
+  <p id="inspect-summary"></p>
+  <dl id="inspect-fields"></dl>
+  <pre id="inspect-payload" aria-label="Datos de ejemplo"></pre>
+  <p id="inspect-mode"></p>
+  <small class="simulation-note">Simulación didáctica: datos y tiempos de ejemplo. No consulta servicios reales.</small>
+</aside>
+<script>
+(() => {
+  'use strict';
+  const NS = 'http://www.w3.org/2000/svg';
+  const $ = id => document.getElementById(id);
+  const C = { a:'#6edcf4', b:'#baa5ff', ok:'#7ce4b3', error:'#ff7c83', amber:'#efbc72', scrape:'#b9a3ff' };
+  const DURATION = 26;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let paused = reducedMotion.matches;
+  let time = paused ? 9 : 0;
+  let previousFrame = null;
+  let speed = 1;
+  let inspection = null;
+  let pinned = false;
+  let hideTimer = null;
+  let restoringFocus = false;
+  const SCRAPES = [4,9,14,19];
+  const DURATION_BUCKETS = [1,2,5,10,20,30,60,120,300,Infinity];
+  const JOBS = {
+    a:{id:'job-demo-a',trace:'4bf92f3577b34da6a3ce929d0e0e4736',created:3.1,start:5.3,end:12.8,result:'succeeded',color:C.a},
+    b:{id:'job-demo-b',trace:'7d7b93e091bf0d02382eaaa18f4af000',created:8.5,start:13.8,end:18.8,result:'failed',color:C.b}
+  };
+  const SERVICE_NAMES = {api:'API principal',validator:'Validador',rabbit:'RabbitMQ',worker:'Worker'};
+  const SPAN_NAMES = ['POST /pipelines','POST /validate (cliente HTTP)','POST /validate','publish pipeline.jobs','process pipeline.jobs','stage build','stage test','stage deploy'];
+  const SPAN_KINDS = ['SERVER','CLIENT','SERVER','PRODUCER','CONSUMER','INTERNAL','INTERNAL','INTERNAL'];
+  const SPAN_PARENTS = [null,0,1,0,3,4,4,4];
+  const stamp = value => value.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+' s';
+  const spanId = (job,row) => (job==='a'?'a':'b')+(row+1).toString(16).padStart(15,'0');
+  function pipeline(job) {
+    return {project:'demo-observabilidad',branch:'main',config:{stages:['build','test','deploy'],stage_seconds:3,fail_at:job==='b'?'test':null}};
+  }
+  function statusAt(job,t=time) {
+    const item=JOBS[job];
+    return t<item.created?'sin crear':t<item.start?'queued':t<item.end?'running':item.result;
+  }
+  function jobAt(t=time) { return t>=6?'b':'a'; }
+  function samplesAt(t=time) {
+    const received=SCRAPES.filter(start=>t>=start+1.3);
+    const sample=received.length?received.at(-1)+.6:null;
+    const completed=sample===null?[]:Object.values(JOBS).filter(job=>job.end<=sample);
+    const accepted=sample===null?0:Number(sample>=4.1)+Number(sample>=9.5);
+    const succeeded=completed.filter(job=>job.result==='succeeded').length;
+    const failed=completed.filter(job=>job.result==='failed').length;
+    const durations=completed.map(job=>Number((job.end-job.created).toFixed(2)));
+    return {received,sample,accepted,succeeded,failed,durations};
+  }
+  function fieldsForJob(job) {
+    return [['Trabajo',JOBS[job].id],['trace_id',JOBS[job].trace],['Estado del trabajo',statusAt(job)]];
+  }
+  function nodeInfo(id) {
+    const job=id==='redis'?(time>=JOBS.b.created?'b':'a'):id==='rabbit'?(time>=8.8?'b':'a'):jobAt();
+    const common=fieldsForJob(job);
+    const definitions={
+      source:{title:'Swagger · cliente',description:'Desde esta pantalla se pide ejecutar un pipeline. Swagger sirve para probar la API: no recoge métricas ni trazas.',fields:[['Envía','POST /pipelines → API principal'],['Recibe','202 Accepted + job_id + trace_id'],['Importante','202 significa aceptado; no significa terminado.']],payload:pipeline(job)},
+      api:{title:'API principal · FastAPI',description:'Valida el pedido por HTTP, crea el estado en Redis y publica el trabajo en RabbitMQ. Responde sin esperar al worker.',fields:[['Entrada','POST /pipelines'],['Salidas','Validador → Redis → RabbitMQ → respuesta 202'],['Observabilidad','Span SERVER, llamada CLIENT, publicación PRODUCER y métricas HTTP'],...common],payload:{...pipeline(job),response:{job_id:JOBS[job].id,status:'queued',trace_id:JOBS[job].trace}}},
+      validator:{title:'Validador · FastAPI',description:'Comprueba proyecto, orden de etapas, duración y fallo solicitado. Su respuesta vuelve a la API; no ejecuta el pipeline.',fields:[['Entrada','POST /validate desde la API'],['Respuesta','200 + resultado de negocio'],['Captura','OpenTelemetry: span SERVER e identificación de la misma traza']],payload:{valid:true,errors:[]}},
+      rabbit:{title:'RabbitMQ · cola de trabajos',description:'Guarda el mensaje hasta que el worker puede tomarlo. El segundo pedido espera mientras el worker sigue con el primero.',fields:[['Exchange / routing key','pipelines / pipeline.run'],['Cola','pipeline.jobs'],['Esperando ahora',(inRange(time,4,4.5)||inRange(time,9.4,13)?'1 mensaje':'0 mensajes')],['Entrega','JSON persistente + headers; ack manual al terminar'],['Métricas','Plugin rabbitmq_prometheus; Prometheus consulta el broker']],payload:messageData(job)},
+      worker:{title:'Worker · consumidor',description:'Toma un mensaje, recupera el contexto de traza y ejecuta las etapas en orden. Un fallo de negocio no mata al worker: termina ese job con failed y confirma el mensaje.',fields:[['Estado',inRange(time,5.3,12.8)||inRange(time,13.8,18.8)?'Procesando un trabajo':'Disponible; los colores conservan el último resultado'],['Entrega','Un trabajo a la vez · prefetch=1 · ack manual'],['Captura','Span CONSUMER → spans de etapas; métricas y log del error'],...fieldsForJob(time>=13.8?'b':'a')],payload:{job_id:JOBS[time>=13.8?'b':'a'].id,trace_id:JOBS[time>=13.8?'b':'a'].trace,status:statusAt(time>=13.8?'b':'a')}},
+      redis:{title:'Redis · estado del pipeline',description:'Es la memoria compartida del trabajo. La API escribe queued y el worker actualiza cada etapa; GET /pipelines/{id} lee ese estado.',fields:[['Clave','job:{id} · JSON · TTL 24 h'],['Recibe','Actualizaciones de API y worker'],['No confundir','Guarda estado, no transporta trabajos ni almacena trazas.'],...common],payload:{key:'job:'+JOBS[job].id,value:{job_id:JOBS[job].id,status:statusAt(job),trace_id:JOBS[job].trace}}}
+    };
+    if(id.startsWith('stage-')) {
+      const stage=id.slice(6), current=time>=13.8?'b':'a';
+      const element=$(id);
+      const state=element.classList.contains('is-error')?'failed':element.classList.contains('is-done')?'succeeded':element.classList.contains('is-active')?'running':'pending';
+      return {category:'ETAPA INTERNA',title:stage+' · etapa del pipeline',description:stage==='build'?'Simula la construcción del proyecto. Ocurre dentro del worker, no en otro servicio.':stage==='test'?'Simula las pruebas. En el segundo pedido está configurada para fallar: registra una excepción y corta la ejecución.':'Simula el despliegue. Si test falla, esta etapa queda pendiente y nunca genera un span de ejecución.',fields:[['Estado visual',state],['Captura','Span INTERNAL, duración por etapa y contador de fallos'],...fieldsForJob(current)],payload:{job_id:JOBS[current].id,stage,status:state,...(state==='failed'?{error:'falló la etapa test (simulado)'}:{})},color:state==='failed'?C.error:JOBS[current].color};
+    }
+    return {category:'COMPONENTE',color: id==='rabbit'?'#f0a874':id==='redis'?'#d69aa9':C.a,...definitions[id]};
+  }
+  function messageData(job) {
+    return {body:{job_id:JOBS[job].id,...pipeline(job),submitted_at:'instante de creación del job (simulado)'},headers:{traceparent:'00-'+JOBS[job].trace+'-'+spanId(job,3)+'-01','x-attempt':1}};
+  }
+  function spanInfo(event) {
+    const parent=SPAN_PARENTS[event.row];
+    return {category:'TRAZA · SPAN',title:SPAN_NAMES[event.row],color:event.error?C.error:JOBS[event.job].color,description:'Una barra representa una operación medida. Su posición indica cuándo empezó y su ancho cuánto duró. Los spans hijos comparten trace_id y apuntan al span padre.',fields:[['Servicio',event.service],['Inicio / fin del dibujo',stamp(event.start)+' → '+stamp(event.end)],['Duración del dibujo',stamp(event.end-event.start)],['Se ve en Jaeger','Después de finalizar y exportarse; no al empezar.']],payload:{trace_id:JOBS[event.job].trace,span_id:spanId(event.job,event.row),parent_span_id:parent===null?null:spanId(event.job,parent),name:event.row===1?'POST':SPAN_NAMES[event.row],kind:SPAN_KINDS[event.row],status:event.error?'ERROR':'UNSET',...(event.error?{exception:{type:'StageFailed',message:'falló la etapa test (simulado)'}}:{})}};
+  }
+  function logInfo(event) {
+    const job=event.job || (event.row===2?'a':'b');
+    const payload=event.service?{ts:'instante del evento (simulado)',level:event.error?'error':'info',service:event.service,logger:event.error?'worker.runner':'api',msg:event.error?'falló la etapa test (simulado)':'pipeline aceptado',trace_id:JOBS[job].trace,span_id:spanId(job,event.error?6:0),job_id:JOBS[job].id,...(event.error?{stage:'test',error:'falló la etapa test (simulado)'}:{})}:{level:'info',service:event.row===0?'api':'worker',msg:'servicio iniciado',trace_id:null,span_id:null};
+    return {category:'LOG · EVENTO',title:event.error?'Log de error · etapa test':event.service?'Log · pipeline aceptado':'Log de inicio',color:event.error?C.error:event.color,description:'Una línea JSON cuenta un evento concreto. Su trace_id conecta este registro con el recorrido de Jaeger. Los logs de inicio no tienen una traza activa.',fields:[['Servicio',payload.service],['Captura','logging de Python → formateador JSON → salida del contenedor'],['Consulta real','Logs del contenedor; este panel solo los representa.']],payload};
+  }
+  function metricInfo(kind) {
+    const s=samplesAt();
+    const common=[['Última muestra',s.sample===null?'Todavía no llegó un scrape':stamp(s.sample)+' del dibujo'],['Recogida','Pull cada 5 segundos simulados; la pantalla cambia al volver la muestra.'],['Identidad','Labels acotados; no hay trace_id ni job_id en métricas.']];
+    if(kind==='histogram')return {category:'MÉTRICA · HISTOGRAMA',title:'Duración de pipelines',color:C.a,description:'Buckets acumulados: una barra cuenta los jobs que terminaron en ese tiempo o menos. Un mismo job puede contar en varias barras. La duración incluye la espera en cola.',fields:[...common,['Jobs medidos',String(s.durations.length)],['Duraciones del dibujo',s.durations.length?s.durations.map(stamp).join(' · '):'Sin jobs terminados en la muestra']],payload:{metric:'pipeline_job_duration_seconds_bucket',buckets:DURATION_BUCKETS.map(le=>({le:Number.isFinite(le)?le:'+Inf',count:s.durations.filter(d=>d<=le).length})),count:s.durations.length,sum:Number(s.durations.reduce((a,b)=>a+b,0).toFixed(2))}};
+    if(kind==='success'||kind==='failures') {
+      const failed=kind==='failures';
+      return {category:'MÉTRICA · CONTADOR',title:failed?'Pipelines fallidos':'Pipelines exitosos',color:failed?C.error:C.ok,description:'Cada punto encendido representa un job terminado en la última muestra. El contador real es acumulativo por proceso; este dibujo reinicia sus dos ejemplos al completar el loop.',fields:[['Valor',String(failed?s.failed:s.succeeded)],...common],payload:{metric:'pipeline_jobs_total',labels:{status:failed?'failed':'succeeded'},value:failed?s.failed:s.succeeded}};
+    }
+    return {category:'MÉTRICAS · PROMETHEUS',title:kind==='plot'?'Peticiones y fallos en el tiempo':'Prometheus · recogida de métricas',color:'#f0a874',description:'La línea celeste representa pedidos aceptados por la API; la roja, pipelines fallidos después. El eje horizontal avanza con el tiempo del dibujo y el vertical representa cantidades, no latencia.',fields:[['Aceptados / fallidos',s.accepted+' / '+s.failed],...common,['Importante','Prometheus recoge números agregados. No reconstruye una traza individual.']],payload:{series:[{metric:'pipelines_submitted_total',labels:{result:'accepted'},value:s.accepted},{metric:'pipeline_jobs_total',labels:{status:'failed'},value:s.failed}]}};
+  }
+  function panelInfo(kind) {
+    if(kind==='metrics')return metricInfo('panel');
+    if(kind==='traces')return {category:'TRAZAS · JAEGER',title:'Jaeger · recorridos distribuidos',color:C.a,description:'Las barras celestes pertenecen al primer pedido y las violetas al segundo. Cada fila es un span; la barra roja es la etapa test que falló. Tocá una barra para ver su identidad y sus tiempos.',fields:[['Recibe','Spans desde OpenTelemetry por OTLP gRPC'],['Exportados ahora',String(spans.filter(event=>time>=event.exported).length)],['Contexto','API → HTTP → RabbitMQ → worker conserva la misma traza.']],payload:{traces:[{job_id:JOBS.a.id,trace_id:JOBS.a.trace},{job_id:JOBS.b.id,trace_id:JOBS.b.trace}]}};
+    return {category:'LOGS · JSON',title:'Logs correlacionados',color:C.amber,description:'Cada renglón representa un evento, no una métrica ni una barra temporal. El punto de color vincula el evento al mismo pedido que ves en Jaeger. Tocá un renglón para abrir su JSON.',fields:[['Disponibles ahora',String(logEvents.filter(event=>time>=event.at).length)],['Inicio','Gris: no existe un span activo.'],['Fallo','Rojo: error de test con job_id, stage, trace_id y span_id.']],payload:null};
+  }
+  function routeInfo(name) {
+    if(name.startsWith('trace-'))return {category:'CONEXIÓN · OTLP',title:'OpenTelemetry → Jaeger',description:'Por acá viajan copias de los spans medidos, no el pedido del usuario. Esta exportación no ejecuta ninguna etapa del pipeline.',color:C.a,fields:[['Origen',SERVICE_NAMES[name.slice(6)]],['Destino','Jaeger · receptor OTLP gRPC :4317'],['Transporta','trace_id, span_id, padre, tiempos, atributos y errores']],payload:null};
+    if(name.startsWith('log-'))return {category:'CONEXIÓN · LOGS',title:'Evento → salida del contenedor',description:'Representa la escritura de una línea JSON. El bloque de logs es una vista conceptual; no agregamos un servidor central de logs.',color:C.amber,fields:[['Origen',SERVICE_NAMES[name.slice(4)]],['Destino','stderr / logs del contenedor'],['Correlación','trace_id y span_id del contexto activo']],payload:null};
+    if(name.startsWith('scrape-'))return {category:'CONEXIÓN · SCRAPE',title:'Prometheus ↔ '+SERVICE_NAMES[name.slice(7)],description:'Prometheus inicia la consulta; el servicio devuelve números. El viaje de ida es GET /metrics y el de vuelta es una muestra. No lleva una traza de un job.',color:C.scrape,fields:[['Inicia','Prometheus'],['Consulta','/metrics; RabbitMQ agrega /metrics/detailed para detalle por cola'],['Periodicidad','Cada 5 segundos simulados']],payload:null};
+    const descriptions={
+      request:['Petición HTTP','Swagger → API principal','POST /pipelines con el proyecto y su configuración. La API crea una traza al recibir el pedido.'],
+      validate:['Validación HTTP','API principal → Validador','POST /validate. httpx propaga traceparent para unir el span CLIENT con el SERVER del validador.'],
+      validated:['Resultado de validación','Validador → API principal','200 con valid y errors. Un pedido rechazado por reglas no es una caída del validador.'],
+      publish:['Publicación AMQP','API principal → RabbitMQ','JSON del trabajo en pipeline.jobs. El contexto viaja en los headers, no dentro del cuerpo.'],
+      consume:['Entrega AMQP','RabbitMQ → Worker','El worker extrae traceparent y abre un span CONSUMER hijo del span de publicación.'],
+      accepted:['Respuesta 202 Accepted','API principal → Swagger','La solicitud fue aceptada. El worker puede seguir trabajando o todavía no haber empezado.'],
+      build:['Inicio de build','Worker → etapa build','Transición interna del mismo proceso: esta línea no es una llamada HTTP.'],
+      test:['Inicio de test','Etapa build → etapa test','El worker avanza en secuencia, manteniendo el contexto de la traza.'],
+      deploy:['Inicio de deploy','Etapa test → etapa deploy','Solo se ejecuta si test termina bien. En el segundo pedido no circula ningún paquete por aquí.'],
+      'state-api':['Escritura inicial','API principal → Redis','Guarda queued antes de publicar el mensaje.'],
+      'state-worker':['Actualización de estado','Worker → Redis','Actualiza etapas y resultado final; la API puede consultar ese avance.'],
+      ack:['Confirmación AMQP · ack','Worker → RabbitMQ','Confirma que el mensaje fue atendido. Un fallo de negocio también lleva ack: no se reintenta por fallar test.']
+    };
+    const [title,flow,description]=descriptions[name];
+    return {category:'CONEXIÓN',title,description,color:name==='accepted'||name==='ack'?C.ok:C.a,fields:[['Recorrido',flow]],payload:null};
+  }
+  function packetInfo(data) {
+    const info=routeInfo(data.route);
+    if(data.span)return {...spanInfo(data.span),category:'PAQUETE OTLP',title:'Exportación · '+SPAN_NAMES[data.span.row],fields:[['Origen → destino',data.span.service+' → Jaeger'],...spanInfo(data.span).fields]};
+    if(data.log)return {...logInfo(data.log),category:'PAQUETE DE LOG',fields:[['Origen → destino',data.log.service+' → logs del contenedor'],...logInfo(data.log).fields]};
+    if(data.route.startsWith('scrape-')) {
+      const service=data.route.slice(7), response=data.direction==='return';
+      const s=samplesAt(data.sampleAt+1);
+      const exposition=service==='worker'
+        ? 'pipeline_jobs_total{status="succeeded"} '+s.succeeded+'\npipeline_jobs_total{status="failed"} '+s.failed
+        : service==='rabbit'
+          ? 'rabbitmq_detailed_queue_messages_ready{queue="pipeline.jobs",vhost="/"} '+(inRange(data.sampleAt,9.4,13)?1:0)
+          : 'http_requests_total{method="POST",route="'+(service==='api'?'/pipelines':'/validate')+'",status="'+(service==='api'?'202':'200')+'"} '+s.accepted;
+      return {...info,category:'PAQUETE DE MÉTRICAS',title:response?'Respuesta de métricas':'Consulta de métricas',fields:[['Origen',response?SERVICE_NAMES[service]:'Prometheus'],['Destino',response?'Prometheus':SERVICE_NAMES[service]],['Sin trace_id','Es información agregada, no la identidad de un pipeline.']],payload:response?{format:'Prometheus exposition',service,sample_time:data.sampleAt,exposition}:{method:'GET',path:service==='rabbit'?'/metrics/detailed?family=queue_coarse_metrics':'/metrics'}};
+    }
+    const job=data.job || 'a';
+    let payload;
+    switch(data.route) {
+      case 'request':payload=pipeline(job);break;
+      case 'validate':payload={body:pipeline(job),headers:{traceparent:'00-'+JOBS[job].trace+'-'+spanId(job,1)+'-01'}};break;
+      case 'validated':payload={http_status:200,valid:true,errors:[]};break;
+      case 'publish':case 'consume':payload=messageData(job);break;
+      case 'accepted':payload={http_status:202,job_id:JOBS[job].id,status:'queued',trace_id:JOBS[job].trace};break;
+      case 'ack':payload={method:'basic_ack',delivery_tag:job==='a'?1:2,multiple:false};break;
+      default:payload={job_id:JOBS[job].id,trace_id:JOBS[job].trace,status:statusAt(job),...(data.route==='state-worker'?{stage:data.start>=18.8?'test':data.start>=16.4?'test':data.start>=14?'build':data.start>=10.4?'deploy':data.start>=8?'test':'build'}:{})};
+    }
+    return {...info,category:'PAQUETE · '+(data.waiting?'EN COLA':'EN TRÁNSITO'),color:JOBS[job].color,fields:[...info.fields,['Trabajo',JOBS[job].id],['Identidad',data.route==='request'?'La API asignará el trace_id al recibirlo.':JOBS[job].trace],...(data.waiting?[['Espera',job==='b'?'El worker todavía está ocupado con el primer job.':'El mensaje espera a que el worker lo tome.']]:[])],payload};
+  }
+
+  function closeInspector(restore=false) {
+    clearTimeout(hideTimer);
+    const previous=inspection?.element;
+    if(previous){previous.classList.remove('is-selected');previous.setAttribute('aria-expanded','false');previous.removeAttribute('aria-describedby');}
+    inspection=null;pinned=false;$('inspector').hidden=true;
+    if(restore&&previous?.isConnected&&previous.getAttribute('display')!=='none') {
+      restoringFocus=true;previous.focus({preventScroll:true});restoringFocus=false;
+    }
+  }
+  function positionInspector(element,event) {
+    const rect=element.getBoundingClientRect();
+    const x=event&&event.clientX?event.clientX:rect.left+rect.width/2;
+    const panel=$('inspector');
+    for(const property of ['left','right','top','bottom','width'])panel.style.removeProperty(property);
+    panel.classList.toggle('at-left',x>innerWidth/2);
+    if(!pinned) {
+      const width=Math.min(280,innerWidth-24);
+      const y=event&&event.clientY?event.clientY:rect.top+rect.height/2;
+      panel.style.width=width+'px';panel.style.right='auto';panel.style.bottom='auto';
+      panel.style.left=Math.max(12,Math.min(x+16,innerWidth-width-12))+'px';
+      panel.style.top=Math.max(12,Math.min(y+16,innerHeight-panel.offsetHeight-80))+'px';
+    }
+  }
+  function drawInspection(info) {
+    $('inspect-category').textContent=info.category;
+    $('inspect-title').textContent=info.title;
+    $('inspector').classList.toggle('is-preview',!pinned);
+    if(!pinned) {
+      $('inspect-summary').textContent='';$('inspect-fields').replaceChildren();
+      $('inspect-payload').hidden=true;$('inspect-payload').textContent='';$('inspect-mode').textContent='';
+      $('inspector').style.setProperty('--detail-color',info.color||C.a);
+      return;
+    }
+    $('inspect-summary').textContent=info.description;
+    $('inspector').style.setProperty('--detail-color',info.color||C.a);
+    $('inspect-fields').replaceChildren();
+    for(const [label,value] of info.fields||[]) {
+      const dt=document.createElement('dt');dt.textContent=label;
+      const dd=document.createElement('dd');dd.textContent=value;
+      $('inspect-fields').append(dt,dd);
+    }
+    $('inspect-payload').hidden=info.payload===null||info.payload===undefined;
+    $('inspect-payload').textContent=info.payload===null||info.payload===undefined?'':JSON.stringify(info.payload,null,2);
+    $('inspect-mode').textContent=pinned?'Captura en pausa · '+stamp(time):'Vista previa · clic para fijar y pausar';
+  }
+  function openInspector(element,reader,pin,event) {
+    if(pinned&&!pin)return;
+    clearTimeout(hideTimer);
+    if(inspection?.element!==element)closeInspector();
+    pinned=pin;inspection={element,reader};
+    if(pin){paused=true;previousFrame=null;syncPause();element.classList.add('is-selected');}
+    element.setAttribute('aria-expanded','true');element.setAttribute('aria-describedby',pinned?'inspect-summary':'inspect-category');
+    drawInspection(reader());$('inspector').hidden=false;positionInspector(element,event);
+    if(event?.type==='keydown')$('inspect-close').focus({preventScroll:true});
+  }
+  function scheduleClose() {
+    if(!pinned)hideTimer=setTimeout(()=>{if(!pinned)closeInspector();},160);
+  }
+  function inspectable(element,label,reader) {
+    element.classList.add('inspectable');element.setAttribute('role','button');element.setAttribute('tabindex','0');
+    element.setAttribute('aria-label',label);element.setAttribute('aria-controls','inspector');element.setAttribute('aria-expanded','false');
+    element.addEventListener('pointerenter',event=>openInspector(element,reader,false,event));
+    element.addEventListener('pointerleave',scheduleClose);
+    element.addEventListener('focus',event=>{if(!restoringFocus)openInspector(element,reader,false,event);});
+    element.addEventListener('blur',event=>{if(!$('inspector').contains(event.relatedTarget))scheduleClose();});
+    element.addEventListener('click',event=>{event.stopPropagation();openInspector(element,reader,true,event);});
+    element.addEventListener('keydown',event=>{
+      if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();openInspector(element,reader,true,event);}
+    });
+  }
+
+
+  function el(tag, attrs, parent) {
+    const item = document.createElementNS(NS, tag);
+    for (const [name, value] of Object.entries(attrs)) item.setAttribute(name, value);
+    if (parent) parent.append(item);
+    return item;
+  }
+  function icon(name, x, y, size, color, parent) {
+    return el('use', {href:'#i-'+name, x:x-size/2, y:y-size/2, width:size, height:size, color,
+      fill:'none', stroke:'currentColor', 'stroke-width':1.7, 'stroke-linecap':'round', 'stroke-linejoin':'round'}, parent);
+  }
+  const routes = {};
+  function route(name, d, kind='main', color) {
+    const family=name.startsWith('trace-')?'trace':name.startsWith('log-')?'log':'metric';
+    const path = el('path', {d, class:'wire '+(kind==='main'?'':kind)+(kind==='telemetry'?' telemetry-'+family:''), ...(color?{style:'--wire-color:'+color}:{})}, $('wires'));
+    path.setAttribute('marker-end',kind==='telemetry'?'url(#arrow-'+family+')':'url(#arrow)');
+    if(kind==='telemetry'&&family==='metric')path.setAttribute('marker-start','url(#arrow-metric)');
+    routes[name] = {path, length:path.getTotalLength()};
+    const hit=el('path',{d,class:'wire-hit','data-route-hit':name},$('wires'));
+    inspectable(hit,'Conexión: '+name,()=>routeInfo(name));
+  }
+  route('request', 'M197 300H308');
+  route('validate', 'M350 248V182');
+  route('validated', 'M390 182V248');
+  route('publish', 'M432 300H608');
+  route('consume', 'M722 300H873');
+  route('accepted', 'M330 352V402Q330 414 318 414H147Q135 414 135 402V352','secondary');
+  route('build', 'M997 300H1045Q1057 300 1057 288V197Q1057 185 1069 185H1133');
+  route('test', 'M1185 225V255');
+  route('deploy', 'M1185 335V365');
+  route('state-api', 'M410 352V458Q410 470 422 470H613','secondary');
+  route('state-worker', 'M935 352V458Q935 470 923 470H717','secondary');
+  route('ack', 'M900 352V373Q900 385 888 385H746Q734 385 734 373V338H722','secondary');
+  route('trace-api', 'M370 360V523Q370 535 358 535H276Q264 535 264 547V600','telemetry', C.a);
+  route('trace-validator', 'M432 130H458Q470 130 470 142V523Q470 535 458 535H276Q264 535 264 547V600','telemetry', C.a);
+  route('trace-worker', 'M975 352V523Q975 535 963 535H276Q264 535 264 547V600','telemetry', C.a);
+  route('log-api', 'M345 352V543Q345 555 357 555H1164Q1176 555 1176 567V600','telemetry', C.amber);
+  route('log-worker', 'M997 325H1028Q1040 325 1040 337V543Q1040 555 1052 555H1164Q1176 555 1176 567V600','telemetry', C.amber);
+  for (const [name, x, y] of [['api',402,352],['validator',450,150],['rabbit',697,352],['worker',960,352]]) {
+    route('scrape-'+name, `M720 600V588Q720 578 ${x<720?708:732} 578H${x+(x<720?12:-12)}Q${x} 578 ${x} 566V${y}`,'telemetry',C.scrape);
+  }
+
+  function node(id, name, x, y, width, height, color, instrumented=false) {
+    const group = el('g',{id, class:'node', transform:`translate(${x} ${y})`, style:`--node-color:${color}`},$('nodes'));
+    el('rect',{class:'halo',x:-width/2-4,y:-height/2-4,width:width+8,height:height+8,rx:20},group);
+    el('rect',{class:'shell',x:-width/2,y:-height/2,width,height,rx:16},group);
+    const image = el('g',{class:'icon'},group);
+    icon(name,0,-3,name==='rabbit'?42:38,'inherit',image);
+    if (instrumented) {
+      const otel = el('g',{class:'otel',transform:`translate(${width/2-13} ${height/2-10})`},group);
+      el('circle',{r:10,fill:'#111c29',stroke:'currentColor','stroke-width':1.3},otel);
+      el('circle',{r:5.5,fill:'none',stroke:'currentColor','stroke-width':1.5,'stroke-dasharray':'12 5'},otel);
+      el('circle',{cx:8,cy:-6,r:2,fill:'currentColor'},otel);
+    }
+    const status = (kind, sign, fill) => {
+      const badge=el('g',{class:'status '+kind+'-status',transform:`translate(${width/2-5} ${-height/2+4})`},group);
+      el('circle',{r:10,fill:'#0c111a',stroke:fill,'stroke-width':1.2},badge);
+      icon(sign,0,0,12,fill,badge);
+    };
+    status('done','check',C.ok); status('error','cross',C.error); status('blocked','cross','#566275');
+    const label={source:'Swagger · cliente',api:'API principal',validator:'Validador',rabbit:'RabbitMQ',worker:'Worker',redis:'Redis','stage-build':'Etapa build','stage-test':'Etapa test','stage-deploy':'Etapa deploy'}[id];
+    inspectable(group,label,()=>nodeInfo(id));
+    return group;
+  }
+  node('source','browser',135,300,124,104,C.ok);
+  node('api','api',370,300,124,104,C.a,true);
+  node('validator','shield',370,130,124,104,C.ok,true);
+  node('rabbit','rabbit',665,300,114,104,'#f0a874');
+  node('worker','worker',935,300,124,104,C.a,true);
+  node('stage-build','build',1185,185,104,80,C.a);
+  node('stage-test','test',1185,295,104,80,C.a);
+  node('stage-deploy','deploy',1185,405,104,80,C.a);
+  node('redis','db',665,470,104,80,'#d69aa9');
+  const workerRing = el('circle',{cx:935,cy:297,r:35,fill:'none',stroke:C.a,'stroke-width':2,
+    'stroke-dasharray':'220', 'stroke-dashoffset':'220', 'pointer-events':'none', transform:'rotate(-90 935 297)'},$('nodes'));
+  const queueSlots = Array.from({length:3},(_,i)=>el('rect',{x:636+i*21,y:371,width:15,height:8,rx:3,class:'queue-slot'},$('queue-slots')));
+
+  const packetPool = [];
+  function packet(index, routeName, fraction, color, shape='dot', details={}) {
+    if (fraction<0 || fraction>1) return;
+    let item = packetPool[index];
+    if (!item) {
+      const group=el('g',{class:'packet'},$('packets'));
+      const trail=el('circle',{r:10,class:'packet-trail'},group);
+      const body=el('rect',{x:-5,y:-5,width:10,height:10,rx:3,stroke:'#edfaff','stroke-width':.7},group);
+      el('circle',{r:15,class:'packet-hit'},group);
+      item={group,trail,body,snapshot:null}; packetPool[index]=item;
+      inspectable(group,'Paquete en tránsito',()=>packetInfo(item.snapshot));
+    }
+    item.snapshot={...details,route:routeName,fraction};
+    item.group.setAttribute('data-route',routeName);
+    item.group.setAttribute('tabindex',paused?'0':'-1');
+    const data=routes[routeName];
+    const point=data.path.getPointAtLength(data.length*fraction);
+    item.group.style.display='';
+    item.group.setAttribute('transform',`translate(${point.x} ${point.y})`);
+    item.trail.setAttribute('fill',color); item.body.setAttribute('fill',color);
+    item.body.setAttribute('transform',shape==='sample'?'rotate(45)':'rotate(0)');
+    item.body.setAttribute('rx',shape==='sample'?1:3);
+  }
+
+  const traceEvents = [];
+  const spans = [
+    {job:'a',row:0,service:'api',start:1.5,end:4.1},
+    {job:'a',row:1,service:'api',start:1.8,end:3.0},
+    {job:'a',row:2,service:'validator',start:2.1,end:2.7},
+    {job:'a',row:3,service:'api',start:3.4,end:4.0},
+    {job:'a',row:4,service:'worker',start:5.3,end:12.8},
+    {job:'a',row:5,service:'worker',start:5.6,end:7.8},
+    {job:'a',row:6,service:'worker',start:8.0,end:10.2},
+    {job:'a',row:7,service:'worker',start:10.4,end:12.6},
+    {job:'b',row:0,service:'api',start:6.9,end:9.5},
+    {job:'b',row:1,service:'api',start:7.2,end:8.4},
+    {job:'b',row:2,service:'validator',start:7.5,end:8.1},
+    {job:'b',row:3,service:'api',start:8.8,end:9.4},
+    {job:'b',row:4,service:'worker',start:13.8,end:18.8},
+    {job:'b',row:5,service:'worker',start:14.0,end:16.2},
+    {job:'b',row:6,service:'worker',start:16.4,end:18.6,error:true}
+  ];
+  for (const job of ['a','b']) {
+    const top=job==='a'?668:758;
+    el('path',{d:`M101 ${top+3}v63m0-63h13m-13 9h13m-13 9h13m-13 9h13m-13 9h13m-13 9h13m-13 9h13`,class:'trace-stem'},$('trace-view'));
+    el('circle',{cx:101,cy:top-5,r:3,fill:C[job]},$('trace-view'));
+    for (const x of [156,226,296,366,436]) el('path',{d:`M${x} ${top-3}v70`,stroke:'#243247','stroke-dasharray':'1 5'},$('trace-view'));
+  }
+  for (const event of spans) {
+    const top=event.job==='a'?668:758;
+    event.exported=event.end+.85;
+    event.bar=el('rect',{x:128+event.start*14,y:top+event.row*9,width:Math.max(5,(event.end-event.start)*14),height:5,
+      class:'trace-bar'+(event.error?' is-error':''),style:`--trace-color:${C[event.job]}`,opacity:0},$('trace-view'));
+    if (event.error) event.mark=el('circle',{cx:132+event.end*14,cy:top+event.row*9+2.5,r:2,fill:C.b,opacity:0},$('trace-view'));
+    inspectable(event.bar,SPAN_NAMES[event.row]+' · pedido '+event.job.toUpperCase(),()=>spanInfo(event));
+    traceEvents.push({route:'trace-'+event.service,start:event.end+.05,duration:.8,color:C[event.job],shape:'sample',span:event});
+  }
+
+  const histogram = DURATION_BUCKETS.map((_,i)=>el('rect',{x:548+i*14,y:815,width:9,height:1,rx:2,fill:i>6?'#baa5ff':'#6edcf4',opacity:.65},$('histogram')));
+  const pips={};
+  for (const [name,x] of [['success',766],['failures',848]]) {
+    pips[name]=Array.from({length:6},(_,i)=>el('rect',{x:x+(i%3)*12,y:780+Math.floor(i/3)*14,width:8,height:8,rx:2,class:'metric-pip'},$('metric-'+name)));
+  }
+  const logEvents = [
+    {at:0,color:'#65758c',row:0,service:null},
+    {at:0,color:'#65758c',row:1,service:null},
+    {at:4.95,color:C.a,row:2,service:'api'},
+    {at:10.35,color:C.b,row:3,service:'api'},
+    {at:19.45,color:C.b,row:4,service:'worker',error:true}
+  ];
+  for (const item of logEvents) {
+    const y=677+item.row*29;
+    item.group=el('g',{class:'log-row'+(item.error?' is-error':''),opacity:0},$('log-view'));
+    el('rect',{x:994,y:y-9,width:364,height:23,rx:5,class:'log-bg',fill:'transparent'},item.group);
+    el('circle',{cx:1007,cy:y+2,r:3.5,fill:item.color},item.group);
+    if(item.error)el('circle',{cx:1007,cy:y+2,r:7,fill:'none',stroke:C.error,'stroke-width':1.2},item.group);
+    const segments=[[1024,1053],[1063,1080],[1090,1138],[1148,1172],[1182,1221],[1231,1251],[1261,1327]];
+    for(const [x1,x2] of segments)el('path',{d:`M${x1} ${y+2}H${x2}`,class:'log-line',opacity:item.row===0?.5:.85},item.group);
+    inspectable(item.group,item.error?'Log de error en test':'Evento de log',()=>logInfo(item));
+  }
+  const inRange=(t,start,end)=>t>=start&&t<end;
+  function state(id, active=false, done=false, error=false, blocked=false) {
+    const group=$(id);
+    group.classList.toggle('is-active',active);
+    group.classList.toggle('is-done',done);
+    group.classList.toggle('is-error',error);
+    group.classList.toggle('is-blocked',blocked);
+  }
+  function chartPath(points) { return points.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' '); }
+  function metrics(t) {
+    const s=samplesAt(t);
+    const requests=[[548,747]],failures=[[548,747]];
+    for(const start of s.received) {
+      const x=548+(start+1.3)/24*344;
+      requests.push([x,747-(start+.6>=9.5?2:start+.6>=4.1?1:0)*28]);
+      failures.push([x,747-(start+.6>=18.8?1:0)*28]);
+    }
+    const x=548+Math.min(t,24)/24*344;
+    requests.push([x,requests.at(-1)[1]]);failures.push([x,failures.at(-1)[1]]);
+    $('requests-line').setAttribute('d',chartPath(requests));
+    $('failures-line').setAttribute('d',chartPath(failures));
+    $('requests-area').setAttribute('d',chartPath(requests)+` L${x} 753 L548 753Z`);
+    histogram.forEach((bar,i)=>{
+      const count=s.durations.filter(duration=>duration<=DURATION_BUCKETS[i]).length;
+      const height=2+count*16;
+      bar.setAttribute('height',height);bar.setAttribute('y',815-height);
+    });
+    pips.success.forEach((pip,i)=>pip.classList.toggle('filled',i<s.succeeded));
+    pips.failures.forEach((pip,i)=>pip.classList.toggle('filled',i<s.failed));
+    $('scrape-light').setAttribute('fill',SCRAPES.some(start=>inRange(t,start,start+1.3))?C.scrape:'#535e77');
+  }
+  const journeys=[
+    {route:'request',start:.6,duration:.9,color:C.a},
+    {route:'validate',start:1.8,duration:.3,color:C.a},
+    {route:'validated',start:2.7,duration:.3,color:C.a},
+    {route:'publish',start:3.4,duration:.6,color:C.a},
+    {route:'accepted',start:4.1,duration:1,color:C.ok,job:'a'},
+    {route:'consume',start:4.5,duration:.8,color:C.a},
+    {route:'build',start:5.3,duration:.3,color:C.a},
+    {route:'test',start:7.8,duration:.2,color:C.a},
+    {route:'deploy',start:10.2,duration:.2,color:C.a},
+    {route:'ack',start:12.8,duration:.7,color:C.ok,job:'a'},
+    {route:'request',start:6,duration:.9,color:C.b},
+    {route:'validate',start:7.2,duration:.3,color:C.b},
+    {route:'validated',start:8.1,duration:.3,color:C.b},
+    {route:'publish',start:8.8,duration:.6,color:C.b},
+    {route:'accepted',start:9.5,duration:1,color:C.ok,job:'b'},
+    {route:'consume',start:13,duration:.8,color:C.b},
+    {route:'build',start:13.8,duration:.2,color:C.b},
+    {route:'test',start:16.2,duration:.2,color:C.b},
+    {route:'ack',start:18.8,duration:.7,color:C.ok,job:'b'},
+    {route:'state-api',start:3.1,duration:.65,color:C.a,shape:'sample'},
+    {route:'state-api',start:8.5,duration:.65,color:C.b,shape:'sample'},
+    ...[5.6,7.8,8,10.2,10.4,12.8].map(start=>({route:'state-worker',start,duration:.65,color:C.a,shape:'sample'})),
+    ...[14,16.2,16.4].map(start=>({route:'state-worker',start,duration:.65,color:C.b,shape:'sample'})),
+    {route:'state-worker',start:18.8,duration:.65,color:C.error,shape:'sample'},
+    ...traceEvents,
+    ...logEvents.filter(event=>event.service).map(event=>({route:'log-'+event.service,start:event.at-.8,duration:.8,color:event.color,shape:'sample',log:event}))
+  ];
+  for(const journey of journeys) {
+    journey.job=journey.job||(journey.color===C.a?'a':'b');
+  }
+  for(const [index,kind] of ['traces','metrics','logs'].entries()) {
+    const label=kind==='traces'?'Jaeger · trazas':kind==='metrics'?'Prometheus · métricas':'Logs JSON';
+    inspectable($('panel-'+kind),label,()=>panelInfo(kind));
+    const header=el('rect',{x:80+index*456,y:610,width:44,height:44,rx:7,class:'metric-hit'},$('panels'));
+    inspectable(header,label,()=>panelInfo(kind));
+  }
+  el('rect',{x:630,y:363,width:74,height:25,rx:5,class:'metric-hit'},$('queue-slots'));
+  inspectable($('queue-slots'),'Mensajes esperando en RabbitMQ',()=>nodeInfo('rabbit'));
+  inspectable($('scrape-status'),'Prometheus · estado del scrape',()=>({...metricInfo('panel'),fields:[['Indicador',SCRAPES.some(start=>inRange(time,start,start+1.3))?'Scrape en curso: consulta y respuesta':'Esperando el siguiente scrape'],...metricInfo('panel').fields]}));
+  const plotHit=el('rect',{id:'metric-plot-hit',x:544,y:671,width:352,height:86,rx:5,class:'metric-hit'},$('metric-view'));
+  inspectable(plotHit,'Gráfica de pedidos y fallos',()=>metricInfo('plot'));
+  el('rect',{x:544,y:766,width:146,height:59,rx:5,class:'metric-hit'},$('histogram'));
+  inspectable($('histogram'),'Histograma de duraciones',()=>metricInfo('histogram'));
+  for(const kind of ['success','failures']) {
+    el('rect',{x:kind==='success'?738:820,y:765,width:69,height:58,rx:5,class:'metric-hit'},$('metric-'+kind));
+    inspectable($('metric-'+kind),kind==='success'?'Contador de éxitos':'Contador de fallos',()=>metricInfo(kind));
+  }
+  for(const [x,y,service] of [[419,342,'api'],[419,172,'validator'],[984,342,'worker']]) {
+    const badge=el('circle',{cx:x,cy:y,r:14,fill:'transparent'},$('nodes'));
+    inspectable(badge,'Instrumentación OpenTelemetry · '+service,()=>({category:'INSTRUMENTACIÓN',title:'OpenTelemetry · '+service,color:C.amber,description:'La marca dorada representa la instrumentación dentro del servicio. Crea spans con un Resource service.name, conserva el contexto y exporta a Jaeger. No es un servicio intermedio por el que pase el trabajo.',fields:[['Servicio',service],['Configuración','TracerProvider → BatchSpanProcessor → exportador OTLP gRPC'],['Al salir','Flush de spans pendientes para no perder la última ejecución.']],payload:{'service.name':service,endpoint:'http://jaeger:4317'}}));
+  }
+  function render(t) {
+    const second=t>=13.8;
+    state('source',inRange(t,.6,1.5)||inRange(t,6,6.9),inRange(t,5.1,6)||t>=10.5);
+    state('api',inRange(t,1.5,4.1)||inRange(t,6.9,9.5));
+    state('validator',inRange(t,2.1,2.7)||inRange(t,7.5,8.1),inRange(t,2.7,7.5)||t>=8.1);
+    state('rabbit',inRange(t,3.4,5.3)||inRange(t,8.8,13.8));
+    state('worker',inRange(t,5.3,12.8)||inRange(t,13.8,18.8),inRange(t,12.8,13.8),t>=18.8);
+    const start=second?14:5.6, buildEnd=second?16.2:7.8, testStart=second?16.4:8, testEnd=second?18.6:10.2;
+    state('stage-build',inRange(t,start,buildEnd),t>=buildEnd);
+    state('stage-test',inRange(t,testStart,testEnd),!second&&t>=10.2,second&&t>=18.6);
+    state('stage-deploy',!second&&inRange(t,10.4,12.6),!second&&t>=12.6,false,second&&t>=18.6);
+    state('redis',journeys.some(j=>j.route.startsWith('state-')&&inRange(t,j.start,j.start+j.duration)));
+    const color=second?C.b:C.a;
+    for(const id of ['worker','stage-build','stage-test','stage-deploy'])$(id).style.setProperty('--node-color',color);
+    const progress=second?Math.max(0,Math.min(1,(t-13.8)/5)):Math.max(0,Math.min(1,(t-5.3)/7.5));
+    workerRing.setAttribute('stroke-dashoffset',220*(1-progress));
+    workerRing.setAttribute('opacity',inRange(t,5.3,12.8)||inRange(t,13.8,18.8)?1:0);
+    workerRing.setAttribute('stroke',color);
+    queueSlots.forEach((slot,i)=>slot.classList.toggle('occupied',i===0&&inRange(t,9.4,13)));
+    for(const event of spans) {
+      const visible=t>=event.exported;
+      event.bar.setAttribute('opacity',visible?1:0);event.bar.style.visibility=visible?'visible':'hidden';
+      if(event.mark)event.mark.setAttribute('opacity',visible?1:0);
+    }
+    logEvents.forEach(event=>{const visible=t>=event.at;event.group.setAttribute('opacity',visible?1:0);event.group.style.visibility=visible?'visible':'hidden';});
+    packetPool.forEach(item=>item.group.style.display='none');
+    let count=0;
+    for(const j of journeys)if(inRange(t,j.start,j.start+j.duration))packet(count++,j.route,(t-j.start)/j.duration,j.color,j.shape,j);
+    // Prometheus inicia la consulta; la muestra vuelve por el mismo camino.
+    for(const start of SCRAPES)for(const service of ['api','validator','rabbit','worker']) {
+      if(inRange(t,start,start+.6))packet(count++,'scrape-'+service,(t-start)/.6,C.scrape,'sample',{direction:'outbound',sampleAt:start+.6});
+      else if(inRange(t,start+.6,start+1.3))packet(count++,'scrape-'+service,1-(t-start-.6)/.7,C.scrape,'sample',{direction:'return',sampleAt:start+.6});
+    }
+    // El mensaje conserva su color mientras espera dentro de la cola.
+    if(inRange(t,4,4.5))packet(count++,'publish',1,C.a,'dot',{job:'a',waiting:true});
+    if(inRange(t,9.4,13))packet(count++,'publish',1,C.b,'dot',{job:'b',waiting:true});
+    metrics(t);
+    if(inspection&&!pinned) {
+      if(inspection.element.style.display==='none'||inspection.element.style.visibility==='hidden')closeInspector();
+      else drawInspection(inspection.reader());
+    }
+    $('timeline').value=t;
+    $('timeline').setAttribute('aria-valuetext',Math.round(t)+' segundos');
+    $('timeline').style.background=`linear-gradient(to right,#6c9aac ${t/DURATION*100}%,#29384c ${t/DURATION*100}%)`;
+  }
+  function syncPause() {
+    $('pause').setAttribute('aria-pressed',String(paused));
+    $('pause').setAttribute('aria-label',paused?'Reanudar':'Pausar');
+    $('pause-icon').setAttribute('href',paused?'#i-play':'#i-pause');
+    document.body.classList.toggle('is-paused',paused);
+    packetPool.forEach(item=>item.group.setAttribute('tabindex',paused?'0':'-1'));
+  }
+  $('pause').addEventListener('click',()=>{paused=!paused;previousFrame=null;if(!paused)closeInspector();syncPause();});
+  $('restart').addEventListener('click',()=>{closeInspector();time=0;previousFrame=null;render(time);});
+  $('timeline').addEventListener('input',event=>{closeInspector();time=Number(event.target.value);previousFrame=null;render(time);});
+  $('speed').addEventListener('change',event=>{speed=Number(event.target.value)||1;previousFrame=null;});
+  $('inspect-close').addEventListener('click',()=>closeInspector(true));
+  $('inspector').addEventListener('pointerenter',()=>clearTimeout(hideTimer));
+  $('inspector').addEventListener('pointerleave',scheduleClose);
+  document.addEventListener('click',event=>{
+    if(!event.target.closest('.inspectable,#inspector,.controls,input'))closeInspector();
+  });
+  $('fullscreen').addEventListener('click',async()=>{
+    try {if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{}
+  });
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape'){event.preventDefault();closeInspector(true);return;}
+    if(event.code==='Space'&&!['BUTTON','INPUT','SELECT'].includes(document.activeElement.tagName)&&!document.activeElement.closest('.inspectable')) {event.preventDefault();paused=!paused;previousFrame=null;if(!paused)closeInspector();syncPause();}
+  });
+  document.addEventListener('visibilitychange',()=>{previousFrame=null;});
+  reducedMotion.addEventListener('change',event=>{if(event.matches){paused=true;syncPause();}});
+  function frame(now) {
+    if(previousFrame!==null&&!paused&&!document.hidden) {
+      const next=time+Math.min(Math.max((now-previousFrame)/1000,0),.2)*speed;
+      if(next>=DURATION)closeInspector();
+      time=next%DURATION;render(time);
+    }
+    previousFrame=now;
+    requestAnimationFrame(frame);
+  }
+  syncPause();render(time);requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
