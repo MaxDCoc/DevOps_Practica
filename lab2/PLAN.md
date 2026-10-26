@@ -363,13 +363,14 @@ con httpx; no se cambiaron las dependencias congeladas para ocultarla.
 - [x] 🔴 `README.md`: cómo levantar, endpoints con ejemplos, URLs de las UIs
       (RabbitMQ `:15672`, Jaeger `:16686`, Prometheus `:9090`), cómo reproducir
       éxito, fallo y escalado, `docker compose down -v`
-- [ ] 🟡 **Dashboard** en `services/web/` (Vite + React + TS, patrón de
-      `lab1/web`): servidor de mocks (`npm run dev:mock`), formulario con
-      atajos *Ejecutar OK* / *Forzar fallo en test* / *Lanzar 10*, lista en vivo
-      (polling cada 2 s) con enlace *Ver traza en Jaeger*, panel de
-      estadísticas, `Dockerfile` + `nginx.conf.template` con proxy `/api`
-      _El `trace_id` de la API ya es real: el enlace puede armarse como
-      `http://localhost:16686/trace/{trace_id}`._
+- [x] 🟡 **Dashboard** en `services/web/` (Vite + React + TS) en el `:3000`:
+      diagrama animado de los mensajes, relato paso a paso, guía de los 5 pasos de
+      la demo, inspector del mensaje (HTTP, AMQP con `traceparent`, Redis), cascada
+      de la traza leída de Jaeger, métricas y glosario. `Dockerfile` +
+      `nginx.conf.template` con proxy `/api` y `/jaeger`
+      _En lugar del servidor de mocks tiene un **modo simulado** dentro del
+      navegador (plan B sin Docker): pausa, paso a paso, escalar y matar workers.
+      Ver `services/web/README.md`._
 - [ ] 🟡 `COLOQUIO.md` (cheat sheet, guion con tiempos, preguntas por rol) y
       `slides/OUTLINE.md` con las 7 diapositivas
 - [ ] 🟡 *(lo toma P1 al terminar su núcleo)* `tests/e2e/test_flow.py` y
@@ -498,7 +499,10 @@ La receta que se siguió:
       tenía `worker` up tres veces, más `api`, `validator` y `rabbitmq` up.
       La comparación de velocidad sigue siendo la del 23/10 en P3: 30 pipelines
       de 3 etapas × 1 s terminaron en 36,75 s al pasar de 1 a 3 workers._
-- [ ] 🟡 El dashboard apunta al `/api` real (ya no al mock) y funciona
+- [x] 🟡 El dashboard apunta al `/api` real (ya no al mock) y funciona
+      _25/10: servicio `web` en el compose, healthy; por nginx `POST /api/pipelines`
+      → `202`, `GET /jaeger/api/traces/{id}` devuelve la traza y las rutas del
+      front caen en `index.html`._
 - [x] 🔴 `docker compose down -v` sin residuos
 
 **Verificado (23/10):** ver P4. `down -v` eliminó los contenedores y la red
@@ -567,3 +571,4 @@ Entrega:
 | 23/10 | MaxDCoc (con Claude) | P2: cola de reintento (`pipeline.jobs.retry`, espera de 5 s, hasta `MAX_ATTEMPTS` intentos y después la DLQ con el job en `failed`). 136 tests en `common` y 27 en el worker, mutaciones 25/26 (1 equivalente) y prueba de punta a punta con el worker en contenedor. Rama `lab2/p2-reintento`, mergeada a `main` |
 | 23/10 | — | P4 sin P3: api, validator y worker en el compose (`TELEMETRY=off`), `scripts/demo.py` y `lab2/README.md`. Verificado `ok`, `fail`, `scale 3`, `burst --n 3` y `down -v`. En P4 quedó el procedimiento para encender trazas y Prometheus al mergear P3 |
 | 25/10 | — | P3 ya estaba en `main` (PR #3). P4 encendió `TELEMETRY=on` en el compose y verificó la traza en Jaeger, el log de error del worker y 3 targets `worker` en Prometheus |
+| 25/10 | — (con Claude) | P4: dashboard de la demo en `services/web/` y servicio `web` en el compose (`:3000`). Probado con un navegador automatizado contra el stack real (pipeline OK, fallo en `test` con el span rojo leído de Jaeger, 3 workers) y en modo simulado (422, worker que muere y re-entrega a otro, ráfaga de 30 con 3 workers, paso a paso, ancho de celular sin scroll horizontal) |
